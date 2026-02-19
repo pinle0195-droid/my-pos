@@ -3,129 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pinle3C 專業管理系統</title>
+    <title>Pinle3C 雲端 POS 管理系統</title>
     <style>
         :root {
             --primary: #3498db;
             --success: #2ecc71;
             --warning: #f1c40f;
+            --danger: #e74c3c;
             --dark: #2c3e50;
+            --bg: #f4f7f6;
         }
-        body { font-family: sans-serif; background: #f4f7f6; margin: 0; display: flex; height: 100vh; }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; color: #333; }
         
-        /* 左側導覽列 */
-        nav { width: 200px; background: var(--dark); color: white; padding: 20px; }
-        nav h2 { font-size: 1.2em; margin-bottom: 30px; color: var(--primary); }
-        .nav-item { padding: 15px; cursor: pointer; border-radius: 8px; margin-bottom: 10px; transition: 0.3s; }
+        /* 側邊導覽 */
+        nav { width: 220px; background: var(--dark); color: white; padding: 20px; display: flex; flex-direction: column; }
+        nav h2 { color: var(--primary); font-size: 20px; margin-bottom: 30px; text-align: center; }
+        .nav-item { padding: 15px; cursor: pointer; border-radius: 8px; margin-bottom: 10px; transition: 0.3s; display: flex; align-items: center; }
         .nav-item:hover, .nav-item.active { background: var(--primary); }
+        .nav-item i { margin-right: 10px; }
 
-        /* 右側主內容區 */
+        /* 主畫面 */
         main { flex: 1; padding: 30px; overflow-y: auto; }
-        .page { display: none; }
+        .page { display: none; max-width: 1000px; margin: 0 auto; }
         .page.active { display: block; }
 
-        /* 表單設計 */
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 600px; }
+        /* 標題與狀態 */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        #db-status { font-size: 14px; padding: 5px 15px; border-radius: 20px; background: #eee; }
+
+        /* 儀表板卡片 */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { padding: 20px; border-radius: 12px; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .stat-card .label { font-size: 14px; opacity: 0.9; }
+        .stat-card .value { font-size: 28px; font-weight: bold; margin: 10px 0; }
+        .bg-blue { background: var(--primary); }
+        .bg-green { background: var(--success); }
+        .bg-red { background: var(--danger); }
+        .bg-dark { background: var(--dark); }
+
+        /* 表單與卡片容器 */
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; color: white; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        .btn-pay { background: var(--primary); }
-        .btn-stock { background: var(--success); }
-        .btn-user { background: var(--dark); }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; color: white; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); }
+        
+        /* 表格樣式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background: #f8f9fa; text-align: left; padding: 12px; border-bottom: 2px solid #eee; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
 
     <nav>
-        <h2>Pinle3C 管理</h2>
-        <div class="nav-item active" onclick="showPage('checkout')">🛒 櫃檯結帳</div>
+        <h2>Pinle3C POS</h2>
+        <div class="nav-item active" onclick="showPage('dashboard')">📊 營運儀表板</div>
+        <div class="nav-item" onclick="showPage('checkout')">🛒 櫃檯結帳</div>
         <div class="nav-item" onclick="showPage('stock')">📦 配件進貨</div>
-        <div class="nav-item" onclick="showPage('customer')">👤 會員錄入</div>
+        <div class="nav-item" onclick="showPage('member')">👤 會員/歷史查詢</div>
     </nav>
 
     <main>
-        <div id="checkout" class="page active">
-            <h1>櫃檯結帳</h1>
-            <div class="card">
-                <div class="form-group">
-                    <label>產品掃描/名稱</label>
-                    <input type="text" placeholder="請輸入產品名稱">
-                </div>
-                <div class="form-group">
-                    <label>支付方式</label>
-                    <select>
-                        <option>現金</option>
-                        <option>刷卡 LP (手續費 2%)</option>
-                        <option>轉帳</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>結帳金額</label>
-                    <input type="number" placeholder="0">
-                </div>
-                <button class="btn btn-pay" onclick="alert('結帳資料已推送雲端')">確認結帳 (Sync to Excel)</button>
+        <div id="dashboard" class="page active">
+            <div class="header">
+                <h1>營運首頁</h1>
+                <div id="db-status">☁️ 雲端連線中...</div>
             </div>
-        </div>
-
-        <div id="stock" class="page">
-            <h1>配件進貨登記</h1>
-            <div class="card" style="border-top: 5px solid var(--success);">
-                <div class="form-group">
-                    <label>廠商名稱</label>
-                    <input type="text" placeholder="請輸入供應商">
-                </div>
-                <div class="form-group">
-                    <label>進貨品項</label>
-                    <input type="text" placeholder="例如：iPhone 15 防摔殼">
-                </div>
-                <div class="form-group">
-                    <label>進貨數量</label>
-                    <input type="number" placeholder="0">
-                </div>
-                <button class="btn btn-stock">完成入庫</button>
-            </div>
-        </div>
-
-        <div id="customer" class="page">
-            <h1>會員資料錄入</h1>
-            <div class="card" style="border-top: 5px solid var(--dark);">
-                <div class="form-group">
-                    <label>客戶姓名</label>
-                    <input type="text" id="cust-name" placeholder="請輸入名字">
-                </div>
-                <div class="form-group">
-                    <label>手機電話</label>
-                    <input type="tel" id="cust-phone" placeholder="09xx-xxx-xxx">
-                </div>
-                <div class="form-group">
-                    <label>備註 (維修紀錄/喜好)</label>
-                    <input type="text" placeholder="例如：固定購買特定品牌玻璃貼">
-                </div>
-                <button class="btn btn-user" onclick="saveCustomer()">儲存會員資料</button>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        // 切換頁面邏輯
-        function showPage(pageId) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(pageId).classList.add('active');
-            event.currentTarget.classList.add('active');
-        }
-
-        // 模擬儲存客戶資料 (未來可串接 Firebase)
-        function saveCustomer() {
-            const name = document.getElementById('cust-name').value;
-            const phone = document.getElementById('cust-phone').value;
-            if(name && phone) {
-                alert('客戶：' + name + ' 資料已儲存！');
-            } else {
-                alert('請完整填寫姓名與電話');
-            }
-        }
-    </script>
-</body>
-</html>
+            <div class="grid">
+                <div class="stat-card bg-blue">
+                    <div class="label">今日銷售額 (TWD)</div>
+                    <div class="value" id="today-total
