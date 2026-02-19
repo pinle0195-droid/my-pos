@@ -1,0 +1,138 @@
+{\rtf1\ansi\ansicpg950\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww12720\viewh7800\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 <!DOCTYPE html>\
+<html lang="zh-TW">\
+<head>\
+    <meta charset="UTF-8">\
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">\
+    <title>Pinle3C \uc0\u23560 \u26989 \u31649 \u29702 \u31995 \u32113 </title>\
+    <style>\
+        :root \{\
+            --primary: #3498db;\
+            --success: #2ecc71;\
+            --warning: #f1c40f;\
+            --dark: #2c3e50;\
+        \}\
+        body \{ font-family: sans-serif; background: #f4f7f6; margin: 0; display: flex; height: 100vh; \}\
+        \
+        /* \uc0\u24038 \u20596 \u23566 \u35261 \u21015  */\
+        nav \{ width: 200px; background: var(--dark); color: white; padding: 20px; \}\
+        nav h2 \{ font-size: 1.2em; margin-bottom: 30px; color: var(--primary); \}\
+        .nav-item \{ padding: 15px; cursor: pointer; border-radius: 8px; margin-bottom: 10px; transition: 0.3s; \}\
+        .nav-item:hover, .nav-item.active \{ background: var(--primary); \}\
+\
+        /* \uc0\u21491 \u20596 \u20027 \u20839 \u23481 \u21312  */\
+        main \{ flex: 1; padding: 30px; overflow-y: auto; \}\
+        .page \{ display: none; \}\
+        .page.active \{ display: block; \}\
+\
+        /* \uc0\u34920 \u21934 \u35373 \u35336  */\
+        .card \{ background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 600px; \}\
+        .form-group \{ margin-bottom: 15px; \}\
+        label \{ display: block; margin-bottom: 5px; font-weight: bold; color: #555; \}\
+        input, select \{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; \}\
+        .btn \{ width: 100%; padding: 12px; border: none; border-radius: 6px; color: white; font-size: 16px; cursor: pointer; margin-top: 10px; \}\
+        .btn-pay \{ background: var(--primary); \}\
+        .btn-stock \{ background: var(--success); \}\
+        .btn-user \{ background: var(--dark); \}\
+    </style>\
+</head>\
+<body>\
+\
+    <nav>\
+        <h2>Pinle3C \uc0\u31649 \u29702 </h2>\
+        <div class="nav-item active" onclick="showPage('checkout')">\uc0\u55357 \u57042  \u27331 \u27311 \u32080 \u24115 </div>\
+        <div class="nav-item" onclick="showPage('stock')">\uc0\u55357 \u56550  \u37197 \u20214 \u36914 \u36008 </div>\
+        <div class="nav-item" onclick="showPage('customer')">\uc0\u55357 \u56420  \u26371 \u21729 \u37636 \u20837 </div>\
+    </nav>\
+\
+    <main>\
+        <div id="checkout" class="page active">\
+            <h1>\uc0\u27331 \u27311 \u32080 \u24115 </h1>\
+            <div class="card">\
+                <div class="form-group">\
+                    <label>\uc0\u29986 \u21697 \u25475 \u25551 /\u21517 \u31281 </label>\
+                    <input type="text" placeholder="\uc0\u35531 \u36664 \u20837 \u29986 \u21697 \u21517 \u31281 ">\
+                </div>\
+                <div class="form-group">\
+                    <label>\uc0\u25903 \u20184 \u26041 \u24335 </label>\
+                    <select>\
+                        <option>\uc0\u29694 \u37329 </option>\
+                        <option>\uc0\u21047 \u21345  LP (\u25163 \u32396 \u36027  2%)</option>\
+                        <option>\uc0\u36681 \u24115 </option>\
+                    </select>\
+                </div>\
+                <div class="form-group">\
+                    <label>\uc0\u32080 \u24115 \u37329 \u38989 </label>\
+                    <input type="number" placeholder="0">\
+                </div>\
+                <button class="btn btn-pay" onclick="alert('\uc0\u32080 \u24115 \u36039 \u26009 \u24050 \u25512 \u36865 \u38642 \u31471 ')">\u30906 \u35469 \u32080 \u24115  (Sync to Excel)</button>\
+            </div>\
+        </div>\
+\
+        <div id="stock" class="page">\
+            <h1>\uc0\u37197 \u20214 \u36914 \u36008 \u30331 \u35352 </h1>\
+            <div class="card" style="border-top: 5px solid var(--success);">\
+                <div class="form-group">\
+                    <label>\uc0\u24288 \u21830 \u21517 \u31281 </label>\
+                    <input type="text" placeholder="\uc0\u35531 \u36664 \u20837 \u20379 \u25033 \u21830 ">\
+                </div>\
+                <div class="form-group">\
+                    <label>\uc0\u36914 \u36008 \u21697 \u38917 </label>\
+                    <input type="text" placeholder="\uc0\u20363 \u22914 \u65306 iPhone 15 \u38450 \u25684 \u27580 ">\
+                </div>\
+                <div class="form-group">\
+                    <label>\uc0\u36914 \u36008 \u25976 \u37327 </label>\
+                    <input type="number" placeholder="0">\
+                </div>\
+                <button class="btn btn-stock">\uc0\u23436 \u25104 \u20837 \u24235 </button>\
+            </div>\
+        </div>\
+\
+        <div id="customer" class="page">\
+            <h1>\uc0\u26371 \u21729 \u36039 \u26009 \u37636 \u20837 </h1>\
+            <div class="card" style="border-top: 5px solid var(--dark);">\
+                <div class="form-group">\
+                    <label>\uc0\u23458 \u25142 \u22995 \u21517 </label>\
+                    <input type="text" id="cust-name" placeholder="\uc0\u35531 \u36664 \u20837 \u21517 \u23383 ">\
+                </div>\
+                <div class="form-group">\
+                    <label>\uc0\u25163 \u27231 \u38651 \u35441 </label>\
+                    <input type="tel" id="cust-phone" placeholder="09xx-xxx-xxx">\
+                </div>\
+                <div class="form-group">\
+                    <label>\uc0\u20633 \u35387  (\u32173 \u20462 \u32000 \u37636 /\u21916 \u22909 )</label>\
+                    <input type="text" placeholder="\uc0\u20363 \u22914 \u65306 \u22266 \u23450 \u36092 \u36023 \u29305 \u23450 \u21697 \u29260 \u29627 \u29827 \u36028 ">\
+                </div>\
+                <button class="btn btn-user" onclick="saveCustomer()">\uc0\u20786 \u23384 \u26371 \u21729 \u36039 \u26009 </button>\
+            </div>\
+        </div>\
+    </main>\
+\
+    <script>\
+        // \uc0\u20999 \u25563 \u38913 \u38754 \u37007 \u36655 \
+        function showPage(pageId) \{\
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));\
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));\
+            document.getElementById(pageId).classList.add('active');\
+            event.currentTarget.classList.add('active');\
+        \}\
+\
+        // \uc0\u27169 \u25836 \u20786 \u23384 \u23458 \u25142 \u36039 \u26009  (\u26410 \u20358 \u21487 \u20018 \u25509  Firebase)\
+        function saveCustomer() \{\
+            const name = document.getElementById('cust-name').value;\
+            const phone = document.getElementById('cust-phone').value;\
+            if(name && phone) \{\
+                alert('\uc0\u23458 \u25142 \u65306 ' + name + ' \u36039 \u26009 \u24050 \u20786 \u23384 \u65281 ');\
+            \} else \{\
+                alert('\uc0\u35531 \u23436 \u25972 \u22635 \u23531 \u22995 \u21517 \u33287 \u38651 \u35441 ');\
+            \}\
+        \}\
+    </script>\
+</body>\
+</html>}
