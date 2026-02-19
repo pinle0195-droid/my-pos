@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的雲端 POS 儀表板</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 5px solid #007bff; }
+        .card.red { border-top-color: #dc3545; }
+        .card.green { border-top-color: #28a745; }
+        .card-title { font-size: 0.9em; color: #666; margin-bottom: 10px; }
+        .card-value { font-size: 2em; font-weight: bold; }
+        #status { font-size: 0.8em; padding: 5px 10px; border-radius: 20px; background: #eee; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>POS 營運儀表板</h1>
+        <div id="status">☁️ 雲端連線中...</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">今日銷售額 (TWD)</div>
+            <div class="card-value" id="today-sales">$ 0</div>
+        </div>
+        <div class="card green">
+            <div class="card-title">今日訂單數</div>
+            <div class="card-value" id="today-orders">0</div>
+        </div>
+        <div class="card red">
+            <div class="card-title">待處理庫存</div>
+            <div class="card-value">12</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+
+        // ⚠️ 這裡貼上你剛剛在 Firebase 看到的金鑰 ⚠️
+        const firebaseConfig = {
+          apiKey: "AIzaSyC2cr8CgW6v19XhrnMC6eUX3Zo3WiE0824",
+          authDomain: "mypos2026-2625d.firebaseapp.com",
+          projectId: "mypos2026-2625d",
+          storageBucket: "mypos2026-2625d.firebasestorage.app",
+          messagingSenderId: "938933727736",
+          appId: "1:938933727736:web:1f50f12053e629be43e60d",
+          measurementId: "G-YB81QQFGE5"
+        };
+
+        // 初始化
+        try {
+            const app = initializeApp(firebaseConfig);
+            document.getElementById("status").innerText = "✅ 雲端連線成功";
+            document.getElementById("status").style.background = "#d4edda";
+        } catch (e) {
+            document.getElementById("status").innerText = "❌ 連線失敗";
+            document.getElementById("status").style.background = "#f8d7da";
+        }
+    </script>
+</body>
+</html>
