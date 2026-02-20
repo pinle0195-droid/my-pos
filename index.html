@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINLE 3C | 終極穩定版 POS</title>
+    <title>PINLE 3C | 終極同步 POS系統</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -12,16 +12,18 @@
         .card { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 6px solid var(--pinle-green); }
         .logo { font-size: 22px; font-weight: bold; color: var(--pinle-green); text-align: center; display: block; margin-bottom: 15px; }
         .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
-        .tab { flex: 1; padding: 12px; text-align: center; background: #eee; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .tab { flex: 1; padding: 12px; text-align: center; background: #eee; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .tab.active { background: var(--pinle-green); color: white; }
         .section { display: none; }
         .section.active { display: block; }
         label { font-size: 13px; font-weight: bold; color: #636e72; display: block; margin-bottom: 5px; }
         input, select { width: 100%; padding: 12px; border: 1px solid #dfe6e9; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 15px; }
-        .profit-box { background: #fffcf0; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ffeeba; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; color: white; }
+        .info-box { background: #fffcf0; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ffeeba; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
         .btn-pay { background: var(--pinle-green); }
         .btn-stock { background: var(--pinle-dark); margin-top: 10px; }
+        .btn-daily { background: #0984e3; margin-top: 10px; }
+        .report-box { background: #2d3436; color: white; padding: 15px; border-radius: 8px; margin-top: 15px; display: none; }
     </style>
 </head>
 <body>
@@ -32,28 +34,30 @@
     <div class="tabs">
         <div class="tab active" id="tab-sale" onclick="switchTab('sale')">🛒 銷售結帳</div>
         <div class="tab" id="tab-stock" onclick="switchTab('stock')">📦 商品進貨</div>
+        <div class="tab" id="tab-daily" onclick="switchTab('daily')">📊 日結對帳</div>
     </div>
 
     <div id="sec-sale" class="section active">
-        <label>1. 掃描條碼</label>
-        <input type="text" id="sale-scan" placeholder="請掃描 IMEI/SN" oninput="autoFetch()">
+        <label>1. 掃描條碼 (IMEI/SN)</label>
+        <input type="text" id="sale-scan" placeholder="請掃描條碼" oninput="autoFetch()">
         
-        <div class="profit-box">
+        <div class="info-box">
             <div>品名：<b id="res-item">---</b></div>
-            <div>成本：<b id="res-cost">---</b></div>
+            <div>進貨成本：<b id="res-cost">$0</b></div>
             <div style="margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;">
-                毛利預估：<b id="res-profit" style="color:red;">$0</b> (含手續費計算)
+                預估手續費：<span id="res-fee">$0</span><br>
+                預估毛利：<b id="res-profit" style="color:#e74c3c;">$0</b>
             </div>
         </div>
 
-        <label>2. 購買人</label>
-        <input type="text" id="sale-buyer" placeholder="輸入購買人姓名">
+        <label>2. 購買人姓名</label>
+        <input type="text" id="sale-buyer" placeholder="請輸入購買人">
 
         <label>3. 付款方式</label>
         <select id="pay-method" onchange="calculateProfit()">
             <option value="現金">現金</option>
-            <option value="刷卡">刷卡 (2%)</option>
-            <option value="LP">LP (2%)</option>
+            <option value="刷卡">刷卡</option>
+            <option value="LP">LP</option>
             <option value="分期">分期</option>
             <option value="行動支付">行動支付</option>
             <option value="匯款/ LPMoney/ iPass Money/電子支付">匯款/ LPMoney/ iPass Money/電子支付</option>
@@ -62,42 +66,69 @@
             <option value="帳期(未付)">帳期(未付)</option>
         </select>
 
-        <label>4. 成交金額</label>
-        <input type="number" id="sale-price" placeholder="輸入成交價" oninput="calculateProfit()">
+        <label>4. 成交售價</label>
+        <input type="number" id="sale-price" placeholder="請輸入成交金額" oninput="calculateProfit()">
         
         <button class="btn btn-pay" id="btn-pay-exec">確認結帳並同步 Excel</button>
     </div>
 
     <div id="sec-stock" class="section">
-        <input type="text" id="stk-name" placeholder="商品名稱">
-        <input type="text" id="stk-sn" placeholder="條碼序號">
-        <input type="number" id="stk-cost" placeholder="進貨成本">
-        <button class="btn btn-stock" id="btn-stock-exec">確認進貨入庫</button>
+        <label>進貨品名</label>
+        <input type="text" id="stk-name" placeholder="例如：iPhone 15">
+        <label>掃描條碼 (IMEI/SN)</label>
+        <input type="text" id="stk-sn" placeholder="請掃描序號">
+        <label>進貨成本</label>
+        <input type="number" id="stk-cost" placeholder="請輸入進貨成本">
+        <button class="btn btn-stock" id="btn-stock-exec">確認商品入庫</button>
+    </div>
+
+    <div id="sec-daily" class="section">
+        <div class="info-box" style="background:#f1f2f6;">
+            <label>💰 早上起帳預備金</label>
+            <input type="number" id="open-cash-val" placeholder="輸入起帳金額">
+            <button class="btn btn-stock" style="padding:10px;" onclick="setOpenCash()">寫入起帳金額</button>
+        </div>
+
+        <button class="btn btn-daily" onclick="generateReport()">產出今日結帳報告</button>
+        
+        <div id="report" class="report-box">
+            <h3 style="text-align:center; margin:0 0 10px 0;">今日結帳清單</h3>
+            <div style="display:flex; justify-content:space-between;"><span>起帳金額(I)</span><span id="rpt-open">0</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>今日現金收入</span><span id="rpt-cash">0</span></div>
+            <hr>
+            <div style="display:flex; justify-content:space-between; color:#52b788; font-weight:bold;">
+                <span>💵 抽屜應有現金(J)</span><span id="rpt-total-cash">0</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                <span>💳 非現金總額(K)</span><span id="rpt-non-cash">0</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                <span>🔥 今日總毛利</span><span id="rpt-profit-total">0</span>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    // 1. 初始化 Firebase (請確保此 databaseURL 正確)
+    // 1. 初始化 Firebase
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const db = firebase.database();
     
-    // 請替換成您部署後的 Google Script URL
-    const GOOGLE_SCRIPT_URL = "您的網頁應用程式URL";
+    // 2. Google Apps Script 網址
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0LUrBXzS_FK0jzszc_C-LnTQBn1mrMCw2gpq9G6dKPOiVYQQWf9uBWCh972vn-bEuSQ/exec";
 
     let currentCost = 0;
 
-    // 分頁切換功能
     window.switchTab = function(type) {
         document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
         document.getElementById('tab-' + type).classList.add('active');
         document.getElementById('sec-' + type).classList.add('active');
     };
 
-    // 掃描條碼連動
     window.autoFetch = function() {
         const sn = document.getElementById('sale-scan').value.trim();
-        if (sn.length < 2) return;
+        if (sn.length < 3) return;
         db.ref('inventory/' + sn).once('value').then(snap => {
             if (snap.exists()) {
                 const d = snap.val();
@@ -106,41 +137,38 @@
                 currentCost = parseFloat(d.cost);
                 calculateProfit();
             } else {
-                document.getElementById('res-item').innerText = "查無此庫存";
+                document.getElementById('res-item').innerText = "查無庫存";
                 currentCost = 0;
             }
         });
     };
 
-    // 計算毛利
     window.calculateProfit = function() {
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const method = document.getElementById('pay-method').value;
-        let fee = 0;
-        if (method === "刷卡" || method === "LP") { fee = price * 0.02; }
+        let fee = (method === "刷卡" || method === "LP") ? price * 0.02 : 0;
         const profit = price - currentCost - fee;
+        document.getElementById('res-fee').innerText = "$" + Math.round(fee);
         document.getElementById('res-profit').innerText = "$" + Math.round(profit);
         return { fee, profit };
     };
 
-    // 結帳並同步 Excel (使用事件監聽確保 100% 觸發)
+    // 結帳功能
     document.getElementById('btn-pay-exec').addEventListener('click', function() {
         const sn = document.getElementById('sale-scan').value;
         const buyer = document.getElementById('sale-buyer').value;
-        const price = document.getElementById('sale-price').value;
+        const price = parseFloat(document.getElementById('sale-price').value);
         const method = document.getElementById('pay-method').value;
         const itemName = document.getElementById('res-item').innerText;
 
-        if (!buyer || !price || itemName === "---") {
-            alert("請檢查：1.是否有掃描條碼 2.是否輸入購買人 3.是否輸入金額");
-            return;
-        }
+        if (!buyer || !price || itemName === "查無庫存") return alert("請檢查購買人、金額與庫存");
 
         const calc = calculateProfit();
+        const date = new Date().toLocaleDateString('zh-TW');
+
         const payload = {
-            date: new Date().toLocaleDateString('zh-TW'),
-            incomeType: "手機(單購)", 
-            expenseType: "",
+            date: date,
+            incomeType: "手機(單購)",
             payMethod: method,
             consumerName: buyer + " - " + itemName,
             nonCashAmt: (method === "現金") ? "" : price,
@@ -149,34 +177,80 @@
             staff: "思璇"
         };
 
-        // 顯示載入中
         this.innerText = "同步中...";
         this.disabled = true;
 
-        fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors", // 避免跨網域阻擋
-            body: JSON.stringify(payload)
-        }).then(() => {
-            // Firebase 扣庫存
+        // 同步到 Excel
+        fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
+        .then(() => {
+            // 同步到 Firebase 歷史紀錄
+            db.ref('Accounting_2026').push({
+                日期: date, 類別: "銷售交易", 付款方式: method, 
+                現金收入: (method === "現金") ? price : 0,
+                非現金收入: (method !== "現金") ? price : 0,
+                毛利: Math.round(calc.profit)
+            });
+            // 扣庫存
             db.ref('inventory/' + sn).remove();
-            alert("結帳成功！Excel 已自動新增。");
+            alert("結帳成功！Excel 已更新");
             location.reload();
-        }).catch(err => {
-            alert("同步失敗，請檢查 Google Script URL");
-            this.innerText = "確認結帳並同步 Excel";
-            this.disabled = false;
         });
     });
+
+    // 起帳功能
+    window.setOpenCash = function() {
+        const amt = document.getElementById('open-cash-val').value;
+        if(!amt) return;
+        const date = new Date().toLocaleDateString('zh-TW');
+        const payload = {
+            date: date, incomeType: "起帳金額", payMethod: "現金",
+            consumerName: "每日起帳預備金", cashAmt: amt, openCash: amt, staff: "系統"
+        };
+        fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+        db.ref('Accounting_2026').push({ 日期: date, 類別: "起帳金額", 現金收入: parseFloat(amt) });
+        alert("起帳成功");
+    };
+
+    // 日結報告
+    window.generateReport = function() {
+        const date = new Date().toLocaleDateString('zh-TW');
+        db.ref('Accounting_2026').once('value').then(snap => {
+            let open = 0, cash = 0, nonCash = 0, profit = 0;
+            snap.forEach(c => {
+                const d = c.val();
+                if(d.日期 === date) {
+                    if(d.類別 === "起帳金額") open += d.現金收入;
+                    else {
+                        if(d.付款方式 === "現金") cash += d.現金收入;
+                        else nonCash += d.非現金收入;
+                        profit += d.毛利;
+                    }
+                }
+            });
+            document.getElementById('rpt-open').innerText = open;
+            document.getElementById('rpt-cash').innerText = cash;
+            document.getElementById('rpt-total-cash').innerText = open + cash;
+            document.getElementById('rpt-non-cash').innerText = nonCash;
+            document.getElementById('rpt-profit-total').innerText = profit;
+            document.getElementById('report').style.display = 'block';
+
+            // 同步日結總結筆到 Excel
+            const summaryPayload = {
+                date: date, incomeType: "日結封帳", payMethod: "-", consumerName: "今日日結總結",
+                openCash: open, cashTotal: (open + cash), nonCashTotal: nonCash, staff: "系統"
+            };
+            fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(summaryPayload) });
+        });
+    };
 
     // 進貨功能
     document.getElementById('btn-stock-exec').addEventListener('click', function() {
         const sn = document.getElementById('stk-sn').value;
         const name = document.getElementById('stk-name').value;
         const cost = document.getElementById('stk-cost').value;
-        if (!sn || !name || !cost) return alert("進貨欄位不全");
+        if (!sn || !name || !cost) return alert("請填寫完整進貨資訊");
         db.ref('inventory/' + sn).set({ name, cost }).then(() => {
-            alert("進貨成功！");
+            alert("商品 " + name + " 已成功入庫");
             location.reload();
         });
     });
