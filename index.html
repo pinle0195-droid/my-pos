@@ -3,130 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的雲端 POS 系統 - 2026 增強版</title>
+    <title>我的 POS 系統 (精準/模糊雙模式)</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f8f9fa; margin: 0; padding: 15px; }
-        .pos-container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        body { font-family: sans-serif; background: #f0f2f5; padding: 15px; }
+        .pos-card { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        /* 搜尋框樣式 */
-        .search-section { position: relative; margin-bottom: 20px; }
-        input#memberInput { width: 100%; padding: 15px; font-size: 18px; border: 2px solid #007bff; border-radius: 8px; box-sizing: border-box; }
-        
-        /* 模糊搜尋建議清單 */
-        #suggestList { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
-        .name-badge { background: #e7f1ff; color: #007bff; padding: 8px 15px; border-radius: 20px; cursor: pointer; border: 1px solid #b3d7ff; font-weight: bold; }
-        .name-badge:hover { background: #007bff; color: white; }
+        /* 模式切換按鈕 */
+        .mode-switch { display: flex; margin-bottom: 15px; background: #eee; border-radius: 8px; padding: 5px; }
+        .mode-btn { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; background: none; font-weight: bold; }
+        .active-mode { background: #007bff; color: white; }
 
-        /* 歷史紀錄顯示區 */
-        .history-section { background: #fffdf2; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-top: 10px; display: none; }
-        .history-item { border-bottom: 1px dotted #ccc; padding: 8px 0; font-size: 14px; }
-        .history-date { color: #666; font-size: 12px; }
-        .history-price { color: #d9534f; font-weight: bold; float: right; }
+        input { width: 100%; padding: 15px; font-size: 18px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .search-active { border-color: #007bff; }
 
-        .btn-action { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; margin-top: 10px; }
+        /* 模糊搜尋清單 */
+        #fuzzyResults { margin-top: 10px; display: none; flex-wrap: wrap; gap: 8px; }
+        .name-tag { background: #e7f1ff; color: #007bff; padding: 10px 18px; border-radius: 20px; cursor: pointer; font-weight: bold; border: 1px solid #b3d7ff; }
+
+        /* 歷史紀錄區 */
+        .history-box { margin-top: 20px; padding: 15px; background: #fffdf2; border-radius: 10px; border: 1px solid #ffeeba; display: none; }
+        .record-line { border-bottom: 1px solid #eee; padding: 8px 0; font-size: 14px; }
+        .price { color: #d9534f; font-weight: bold; float: right; }
     </style>
 </head>
 <body>
 
-<div class="pos-container">
-    <h2>☕ 我的雲端 POS</h2>
+<div class="pos-card">
+    <h2 style="text-align: center;">☕ POS 系統</h2>
 
-    <div class="search-section">
-        <label>客戶姓名搜尋 (輸入一個字即可)：</label>
-        <input type="text" id="memberInput" placeholder="請輸入姓名..." oninput="filterMembers()">
-        <div id="suggestList"></div>
+    <div class="mode-switch">
+        <button id="btnExact" class="mode-btn active-mode" onclick="setMode('exact')">精準搜尋</button>
+        <button id="btnFuzzy" class="mode-btn" onclick="setMode('fuzzy')">模糊搜尋</button>
     </div>
 
-    <div id="historySection" class="history-section">
-        <h4 id="currentMemberTitle" style="margin-top:0; color:#856404;">⏳ 消費歷史紀錄</h4>
+    <input type="text" id="memberInput" placeholder="請輸入姓名..." oninput="onTyping()">
+    
+    <div id="fuzzyResults"></div>
+
+    <div id="historyBox" class="history-box">
+        <h4 id="memberNameTitle" style="margin-top:0;">📋 消費紀錄</h4>
         <div id="historyList"></div>
     </div>
 
-    <hr>
-
-    <div class="order-section">
-        <p style="color:#666; text-align:center;">--- 點餐/功能區 ---</p>
-        <button class="btn-action" onclick="alert('訂單功能開發中')">確認下單</button>
-    </div>
+    <hr style="margin: 20px 0;">
+    <button style="width:100%; padding:15px; background:#28a745; color:white; border:none; border-radius:8px; font-size:18px;">確認結帳</button>
 </div>
 
 <script>
-    // 1. Firebase 初始化 (直接套用你的資料庫)
-    const firebaseConfig = {
-        databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/"
-    };
+    // 1. 初始化 Firebase
+    const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let allMembers = {};
+    let currentMode = 'exact'; // 預設精準搜尋
 
-    // 2. 監聽 Firebase 資料，一有更新立刻同步到網頁
-    db.ref('members').on('value', (snapshot) => {
-        allMembers = snapshot.val() || {};
-        console.log("資料庫已就緒");
-    });
+    // 抓取雲端資料
+    db.ref('members').on('value', (s) => { allMembers = s.val() || {}; });
 
-    // 3. 模糊搜尋邏輯
-    function filterMembers() {
-        const keyword = document.getElementById('memberInput').value.trim();
-        const suggestList = document.getElementById('suggestList');
-        const historySection = document.getElementById('historySection');
+    // 切換模式功能
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('btnExact').classList.toggle('active-mode', mode === 'exact');
+        document.getElementById('btnFuzzy').classList.toggle('active-mode', mode === 'fuzzy');
+        document.getElementById('fuzzyResults').style.display = 'none';
+        document.getElementById('memberInput').placeholder = (mode === 'exact') ? "請輸入完整姓名..." : "輸入名字中的字 (如: 張)";
+        document.getElementById('memberInput').value = '';
+    }
+
+    // 當使用者在輸入框打字時
+    function onTyping() {
+        const val = document.getElementById('memberInput').value.trim();
+        const fuzzyResults = document.getElementById('fuzzyResults');
         
-        suggestList.innerHTML = ''; // 清空建議
-
-        if (keyword === '') {
-            historySection.style.display = 'none';
+        if (!val) {
+            fuzzyResults.style.display = 'none';
             return;
         }
 
-        // 找包含關鍵字的名字 (模糊搜尋)
-        const matches = Object.keys(allMembers).filter(name => 
-            name.includes(keyword)
-        );
-
-        if (matches.length > 0) {
-            matches.forEach(name => {
-                const span = document.createElement('span');
-                span.className = 'name-badge';
-                span.innerText = name;
-                span.onclick = () => selectMember(name);
-                suggestList.appendChild(span);
-            });
+        if (currentMode === 'exact') {
+            // 精準模式：只有完全一樣才跳出歷史
+            if (allMembers[val]) {
+                showHistory(val);
+            }
+        } else {
+            // 模糊模式：找出包含關鍵字的所有人
+            fuzzyResults.innerHTML = '';
+            const matches = Object.keys(allMembers).filter(n => n.includes(val));
+            if (matches.length > 0) {
+                fuzzyResults.style.display = 'flex';
+                matches.forEach(name => {
+                    const tag = document.createElement('div');
+                    tag.className = 'name-tag';
+                    tag.innerText = name;
+                    tag.onclick = () => {
+                        document.getElementById('memberInput').value = name;
+                        showHistory(name);
+                        fuzzyResults.style.display = 'none';
+                    };
+                    fuzzyResults.appendChild(tag);
+                });
+            }
         }
     }
 
-    // 4. 當選取某個會員時
-    function selectMember(name) {
-        document.getElementById('memberInput').value = name;
-        document.getElementById('suggestList').innerHTML = ''; // 選好後關閉建議
-        
-        const historySection = document.getElementById('historySection');
-        const historyList = document.getElementById('historyList');
-        const title = document.getElementById('currentMemberTitle');
+    // 顯示歷史紀錄
+    function showHistory(name) {
+        const box = document.getElementById('historyBox');
+        const list = document.getElementById('historyList');
+        const title = document.getElementById('memberNameTitle');
         
         title.innerText = `📋 ${name} 的消費歷史`;
-        historyList.innerHTML = '';
+        list.innerHTML = '';
         
-        const historyData = allMembers[name].history;
+        if (allMembers[name] && allMembers[name].history) {
+            const historyData = allMembers[name].history;
+            const sorted = Object.values(historyData).sort((a,b) => new Date(b.date) - new Date(a.date));
 
-        // 排序：最新的排在上面
-        const sorted = Object.values(historyData).sort((a,b) => new Date(b.date) - new Date(a.date));
-
-        sorted.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'history-item';
-            div.innerHTML = `
-                <span class="history-date">${item.date}</span><br>
-                <span>${item.item}</span>
-                <span class="history-price">$${item.price}</span>
-            `;
-            historyList.appendChild(div);
-        });
-
-        historySection.style.display = 'block';
+            sorted.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'record-line';
+                div.innerHTML = `<span>${item.date}</span> | <span>${item.item}</span> <span class="price">$${item.price}</span>`;
+                list.appendChild(div);
+            });
+            box.style.display = 'block';
+        }
     }
 </script>
 
