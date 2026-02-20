@@ -16,7 +16,7 @@
         .tab.active { background: var(--pinle-green); color: white; }
         .section { display: none; }
         .section.active { display: block; }
-        .input-group { margin-bottom: 15px; }
+        .input-group { margin-bottom: 12px; }
         label { font-size: 14px; font-weight: bold; color: #444; display: block; margin-bottom: 5px; }
         input, select { width: 100%; padding: 12px; border: 1.5px solid #e0e0e0; border-radius: 10px; font-size: 16px; box-sizing: border-box; background: #fafafa; }
         .info-box { background: #fffcf0; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #ffeeba; }
@@ -25,7 +25,6 @@
         .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 17px; font-weight: bold; cursor: pointer; color: white; margin-bottom: 10px; }
         .btn-pay { background: var(--pinle-green); }
         .btn-search { background: #0984e3; }
-        .report-box { background: var(--pinle-dark); color: white; padding: 15px; border-radius: 10px; margin-top: 15px; }
         .history-item { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; color: #333; }
     </style>
 </head>
@@ -33,30 +32,23 @@
 
 <div class="card">
     <span class="logo">PINLE 3C POS</span>
-
     <div class="tabs">
-        <div class="tab active" id="tab-sale" onclick="switchTab('sale')">🛒 銷售結帳</div>
-        <div class="tab" id="tab-customer" onclick="switchTab('customer')">🔍 客戶查詢</div>
-        <div class="tab" id="tab-daily" onclick="switchTab('daily')">📊 日結報告</div>
+        <div class="tab active" onclick="switchTab('sale')" id="tab-sale">🛒 銷售結帳</div>
+        <div class="tab" onclick="switchTab('customer')" id="tab-customer">🔍 客戶查詢</div>
+        <div class="tab" onclick="switchTab('daily')" id="tab-daily">📊 日結報告</div>
     </div>
 
     <div id="sec-sale" class="section active">
         <div class="input-group">
             <label>1. 掃描序號 (IMEI/SN)</label>
-            <input type="text" id="sale-scan" placeholder="掃描或輸入" oninput="autoFetch()">
+            <input type="text" id="sale-scan" placeholder="掃描或手輸" oninput="autoFetch()">
         </div>
-        
         <div class="info-box">
             <div class="info-row"><span>品名：</span><b id="res-item">---</b></div>
             <div class="info-row"><span>成本：</span><b id="res-cost">$0</b></div>
             <div class="info-row profit-row"><span>預估毛利：</span><b id="res-profit" style="color:#e74c3c;">$0</b></div>
         </div>
-
-        <div class="input-group">
-            <label>2. 購買人姓名</label>
-            <input type="text" id="sale-buyer" placeholder="輸入姓名">
-        </div>
-
+        <div class="input-group"><label>2. 購買人姓名</label><input type="text" id="sale-buyer" placeholder="輸入姓名"></div>
         <div class="input-group">
             <label>3. 付款方式</label>
             <select id="pay-method" onchange="calculateProfit()">
@@ -71,12 +63,7 @@
                 <option value="帳期(未付)">帳期(未付)</option>
             </select>
         </div>
-
-        <div class="input-group">
-            <label>4. 成交售價</label>
-            <input type="number" id="sale-price" placeholder="輸入金額" oninput="calculateProfit()">
-        </div>
-
+        <div class="input-group"><label>4. 成交售價</label><input type="number" id="sale-price" placeholder="輸入金額" oninput="calculateProfit()"></div>
         <div class="input-group">
             <label>5. 承辦人</label>
             <select id="staff-select">
@@ -85,21 +72,17 @@
                 <option value="䕒尹">䕒尹</option>
             </select>
         </div>
-        
         <button class="btn btn-pay" id="btn-pay-exec">確認結帳並同步 Excel</button>
     </div>
 
     <div id="sec-customer" class="section">
-        <div class="input-group">
-            <label>🔍 查詢客戶姓名或序號</label>
-            <input type="text" id="cust-search-input" placeholder="關鍵字">
-        </div>
+        <div class="input-group"><label>🔍 查詢客戶姓名或序號</label><input type="text" id="cust-search-input" placeholder="關鍵字"></div>
         <button class="btn btn-search" onclick="searchCustomer()">開始搜尋</button>
         <div id="search-result-display" style="margin-top:10px;"></div>
     </div>
 
     <div id="sec-daily" class="section">
-        <label>💰 起帳預備金</label>
+        <label>💰 今日起帳預備金</label>
         <input type="number" id="open-cash-val" placeholder="輸入金額">
         <button class="btn" style="background:var(--pinle-dark);" onclick="setOpenCash()">寫入起帳金額</button>
         <hr>
@@ -120,10 +103,10 @@
 
     let currentCost = 0;
 
-    window.switchTab = function(type) {
+    window.switchTab = function(t) {
         document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
-        document.getElementById('tab-' + type).classList.add('active');
-        document.getElementById('sec-' + type).classList.add('active');
+        document.getElementById('tab-'+t).classList.add('active');
+        document.getElementById('sec-'+t).classList.add('active');
     };
 
     window.autoFetch = function() {
@@ -144,26 +127,26 @@
     };
 
     window.calculateProfit = function() {
-        const price = parseFloat(document.getElementById('sale-price').value) || 0;
-        const profit = price - currentCost;
+        const p = parseFloat(document.getElementById('sale-price').value) || 0;
+        const profit = p - currentCost;
         document.getElementById('res-profit').innerText = "$" + Math.round(profit);
         return { profit };
     };
 
     window.searchCustomer = function() {
-        const keyword = document.getElementById('cust-search-input').value.trim();
-        if (!keyword) return;
-        const display = document.getElementById('search-result-display');
-        display.innerHTML = "搜尋中...";
+        const k = document.getElementById('cust-search-input').value.trim();
+        if(!k) return;
+        const disp = document.getElementById('search-result-display');
+        disp.innerHTML = "搜尋中...";
         db.ref('Accounting_2026').once('value').then(snap => {
-            let foundHtml = "";
-            snap.forEach(child => {
-                const d = child.val();
-                if ((d.consumerName && d.consumerName.includes(keyword)) || (d.note && d.note.includes(keyword))) {
-                    foundHtml = `<div class="history-item">📅 ${d.日期}<br>👤 ${d.consumerName}<br>💰 $${d.現金收入 || d.非現金收入} (${d.付款方式})<br>📝 ${d.note || ''}</div>` + foundHtml;
+            let h = "";
+            snap.forEach(c => {
+                const d = c.val();
+                if ((d.consumerName && d.consumerName.includes(k)) || (d.note && d.note.includes(k))) {
+                    h = `<div class="history-item">📅 ${d.日期}<br>👤 ${d.consumerName}<br>💰 $${d.現金收入 || d.非現金收入} (${d.付款方式})<br>📝 ${d.note || ''}</div>` + h;
                 }
             });
-            display.innerHTML = foundHtml || "查無紀錄";
+            disp.innerHTML = h || "查無紀錄";
         });
     };
 
@@ -174,7 +157,6 @@
         const method = document.getElementById('pay-method').value;
         const staff = document.getElementById('staff-select').value;
         const itemName = document.getElementById('res-item').innerText;
-
         if (!buyer || !price || itemName.includes("❌")) return alert("請填寫正確資料");
 
         const calc = calculateProfit();
@@ -207,17 +189,17 @@
     window.generateReport = function() {
         const date = new Date().toLocaleDateString('zh-TW');
         db.ref('Accounting_2026').once('value').then(snap => {
-            let open = 0, cash = 0, nonCash = 0;
-            snap.forEach(c => {
-                const d = c.val();
+            let o = 0, c = 0, nc = 0;
+            snap.forEach(child => {
+                const d = child.val();
                 if(d.日期 === date) {
-                    if(d.類別 === "起帳") open += d.現金收入;
-                    else { if(d.付款方式 === "現金") cash += d.現金收入; else nonCash += d.非現金收入; }
+                    if(d.類別 === "起帳") o += d.現金收入;
+                    else { if(d.付款方式 === "現金") c += d.現金收入; else nc += d.非現金收入; }
                 }
             });
-            document.getElementById('rpt-open').innerText = open;
-            document.getElementById('rpt-total-cash').innerText = open + cash;
-            document.getElementById('rpt-non-cash').innerText = nonCash;
+            document.getElementById('rpt-open').innerText = o;
+            document.getElementById('rpt-total-cash').innerText = o + c;
+            document.getElementById('rpt-non-cash').innerText = nc;
             document.getElementById('report').style.display = 'block';
         });
     };
