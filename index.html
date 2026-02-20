@@ -2,109 +2,109 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雲端 POS 系統</title>
+    <title>我的 POS 系統</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f4f4f4; padding: 20px; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #003366; }
+        /* 完全還原 2/19 的簡潔風格 */
+        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         
-        /* 搜尋與輸入框 */
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
-        
-        /* 模糊搜尋建議區 */
-        #suggestions { display: none; background: #e9ecef; border-radius: 5px; padding: 5px; margin-bottom: 10px; }
-        .name-tag { display: inline-block; background: #007bff; color: white; padding: 8px 12px; margin: 4px; border-radius: 20px; cursor: pointer; font-size: 14px; }
+        /* 模糊搜尋建議 (僅在打字時出現) */
+        #suggestions { display: none; background: #f0f0f0; padding: 5px; border-radius: 4px; margin-bottom: 10px; }
+        .name-tag { display: inline-block; background: #007bff; color: white; padding: 5px 10px; margin: 3px; border-radius: 15px; cursor: pointer; font-size: 14px; }
 
         /* 歷史紀錄區 */
-        #historyBox { display: none; background: #fffdf2; border: 1px solid #ffeeba; padding: 15px; border-radius: 5px; margin-top: 10px; }
-        .record { border-bottom: 1px solid #eee; padding: 8px 0; font-size: 14px; }
-        .sn-text { font-size: 12px; color: #666; background: #eee; padding: 2px 5px; border-radius: 3px; }
+        #historyBox { display: none; margin-top: 15px; padding: 10px; background: #fffdf2; border: 1px solid #ffeeba; border-radius: 4px; }
+        .record-item { border-bottom: 1px solid #eee; padding: 5px 0; font-size: 14px; }
+        .sn-detail { font-size: 12px; color: #666; display: block; background: #f0f0f0; padding: 2px 5px; margin-top: 3px; }
 
-        /* 原本的大按鈕顏色 */
-        .btn { width: 100%; padding: 15px; color: white; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        .btn-blue { background: #007bff; }
-        .btn-green { background: #28a745; }
+        /* 原本的彩色大按鈕 */
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 4px; color: white; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-blue { background-color: #007bff; }
+        .btn-green { background-color: #28a745; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>☕ 營運管理系統</h2>
+    <h2>☕ 我的 POS 系統</h2>
 
-    <input type="text" id="nameInput" placeholder="輸入姓名 (可只打一個字)..." oninput="searchMember()">
+    <input type="text" id="memberName" placeholder="輸入會員姓名..." oninput="smartSearch()">
     <div id="suggestions"></div>
 
     <div id="historyBox">
-        <h4 id="titleName" style="margin:0 0 10px 0;"></h4>
-        <div id="recordList"></div>
+        <strong id="hTitle"></strong>
+        <div id="hList"></div>
     </div>
 
-    <hr style="margin:20px 0; border:0.5px solid #eee;">
+    <hr>
 
-    <select id="itemType">
+    <input type="text" id="item" placeholder="品項名稱">
+    <input type="number" id="price" placeholder="金額">
+    
+    <select id="stockCategory">
+        <option value="進貨">進貨 (配件/其他)</option>
         <option value="手機">手機進貨</option>
-        <option value="配件">進貨 (配件/其他)</option>
     </select>
-    <input type="text" id="snInput" placeholder="輸入商品序號 (IMEI/SN)">
-    <input type="text" id="supplierInput" placeholder="輸入進貨人 / 供應商">
+    <input type="text" id="snCode" placeholder="商品序號 (IMEI/SN)">
+    <input type="text" id="supplier" placeholder="進貨人 / 供應商">
 
-    <button class="btn btn-blue" onclick="alert('進貨資料已記錄')">確認進貨</button>
-    <button class="btn btn-green" onclick="alert('結帳成功')">確認結帳</button>
+    <button class="btn btn-blue" onclick="saveRecord('進貨')">確認進貨</button>
+    <button class="btn btn-green" onclick="saveRecord('結帳')">確認結帳</button>
 </div>
 
 <script>
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    let members = {};
+    let allData = {};
 
-    db.ref('members').on('value', (s) => { members = s.val() || {}; });
+    db.ref('members').on('value', (s) => { allData = s.val() || {}; });
 
-    function searchMember() {
-        const val = document.getElementById('nameInput').value.trim();
+    function smartSearch() {
+        const val = document.getElementById('memberName').value.trim();
         const sugg = document.getElementById('suggestions');
-        const box = document.getElementById('historyBox');
         sugg.innerHTML = '';
+        if(!val) { sugg.style.display = 'none'; return; }
 
-        if (!val) { sugg.style.display = 'none'; box.style.display = 'none'; return; }
-
-        const matches = Object.keys(members).filter(n => n.includes(val));
-        if (matches.length > 0) {
+        const matches = Object.keys(allData).filter(n => n.includes(val));
+        if(matches.length > 0) {
             sugg.style.display = 'block';
-            matches.forEach(name => {
-                const span = document.createElement('span');
-                span.className = 'name-tag';
-                span.innerText = name;
-                span.onclick = () => { selectMember(name); };
-                sugg.appendChild(span);
+            matches.forEach(n => {
+                const sp = document.createElement('span');
+                sp.className = 'name-tag';
+                sp.innerText = n;
+                sp.onclick = () => { selectMember(n); };
+                sugg.appendChild(sp);
             });
         }
-        if (members[val]) selectMember(val);
+        if(allData[val]) selectMember(val);
     }
 
-    function selectMember(name) {
-        document.getElementById('nameInput').value = name;
+    function selectMember(n) {
+        document.getElementById('memberName').value = n;
         document.getElementById('suggestions').style.display = 'none';
         const box = document.getElementById('historyBox');
-        const list = document.getElementById('recordList');
-        document.getElementById('titleName').innerText = "📋 " + name + " 的紀錄";
+        const list = document.getElementById('hList');
+        document.getElementById('hTitle').innerText = n + " 的歷史紀錄：";
         
         list.innerHTML = '';
-        const history = members[name].history;
-        Object.values(history).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(h => {
-            const div = document.createElement('div');
-            div.className = 'record';
-            div.innerHTML = `
-                <div style="font-size:11px; color:#888;">${h.date}</div>
-                <div>${h.item} <span style="color:red; float:right;">$${h.price}</span></div>
-                ${h.sn ? `<div class="sn-text">序號：${h.sn} | 來源：${h.supplier || '進貨'}</div>` : ''}
-            `;
-            list.appendChild(div);
+        const hData = allData[n].history;
+        Object.values(hData).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(i => {
+            list.innerHTML += `
+                <div class="record-item">
+                    ${i.date} - ${i.item} <span style="color:red; float:right;">$${i.price}</span>
+                    ${i.sn ? `<span class="sn-detail">序號: ${i.sn} | 來源: ${i.supplier || '未註記'}</span>` : ''}
+                </div>`;
         });
         box.style.display = 'block';
+    }
+
+    function saveRecord(type) {
+        alert(type + '功能已記錄 (測試中)');
     }
 </script>
 
