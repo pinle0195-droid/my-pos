@@ -3,94 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beez Style POS - 品樂數位</title>
+    <title>我的雲端 POS 系統</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --beez-blue: #5d87a1; --beez-dark: #343a40; --beez-bg: #e9ecef; }
-        body { font-family: sans-serif; background: var(--beez-bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        /* 恢復原本最簡單的樣式 */
+        body { font-family: sans-serif; background: #f8f9fa; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
         
-        /* 左側導航欄 */
-        .sidebar { width: 200px; background: var(--beez-dark); color: white; display: flex; flex-direction: column; padding: 10px; }
-        .menu-item { padding: 12px; border-bottom: 1px solid #4b545c; cursor: pointer; font-size: 14px; }
-        .menu-item:hover { background: #495057; }
-
-        /* 中間產品區 */
-        .main-panel { flex: 1; display: flex; flex-direction: column; background: white; border-right: 1px solid #ccc; }
-        .product-tabs { display: flex; background: white; border-bottom: 1px solid #ddd; }
-        .tab { flex: 1; padding: 15px; text-align: center; border-right: 1px solid #ddd; cursor: pointer; font-weight: bold; }
-        .tab.active { border-bottom: 3px solid var(--beez-blue); color: var(--beez-blue); }
-        .product-grid { flex: 1; padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; overflow-y: auto; background: #f8f9fa; }
-        .prod-card { background: white; border: 1px solid #ddd; border-radius: 5px; padding: 10px; text-align: center; font-size: 13px; }
-        .prod-img { width: 60px; height: 60px; background: #eee; border-radius: 50%; margin: 0 auto 10px; }
-
-        /* 右側結帳搜尋區 */
-        .right-panel { width: 380px; background: white; display: flex; flex-direction: column; padding: 15px; }
-        .search-box { position: relative; margin-bottom: 15px; }
-        input#memberInput { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        /* 搜尋框區塊 */
+        .search-area { position: relative; margin-bottom: 20px; }
+        input#memberInput { width: 100%; padding: 15px; font-size: 18px; border: 2px solid #ddd; border-radius: 5px; box-sizing: border-box; }
         
-        /* 模糊搜尋標籤 */
-        #fuzzyTags { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; z-index: 100; display: none; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .tag-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; color: var(--beez-blue); }
+        /* 模糊搜尋跳出來的小名單 */
+        #fuzzyList { position: absolute; width: 100%; background: white; border: 1px solid #ddd; border-top: none; z-index: 10; display: none; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .fuzzy-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; font-weight: bold; color: #007bff; }
+        .fuzzy-item:hover { background: #f1f1f1; }
 
-        /* 歷史與序號追蹤 */
-        .history-list { flex: 1; overflow-y: auto; margin-bottom: 15px; border: 1px solid #eee; border-radius: 5px; padding: 10px; background: #fffdf2; }
-        .history-entry { border-bottom: 1px solid #eee; padding: 8px 0; font-size: 13px; }
-        .sn-track { display: block; font-size: 11px; color: #666; background: #f0f0f0; padding: 3px 6px; border-radius: 3px; margin-top: 4px; border-left: 3px solid var(--beez-blue); }
+        /* 歷史紀錄顯示 */
+        .history-section { background: #fffdf2; border: 1px solid #ffeeba; padding: 15px; border-radius: 5px; margin-top: 15px; display: none; }
+        .record { border-bottom: 1px dotted #ccc; padding: 10px 0; font-size: 15px; }
+        .price { color: #d9534f; font-weight: bold; float: right; }
+        .sn-info { font-size: 12px; color: #666; background: #eee; padding: 3px 6px; border-radius: 3px; margin-top: 5px; display: block; }
 
-        /* 進貨功能區 (整合在右下方) */
-        .stock-footer { border-top: 2px solid #ddd; padding-top: 10px; }
-        .stock-input { width: 100%; padding: 8px; margin-bottom: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
-        .btn-confirm { width: 100%; padding: 15px; background: #4b7d94; color: white; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; }
+        /* 原本的大按鈕 */
+        .btn { width: 100%; padding: 15px; font-size: 18px; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        .btn-blue { background: #007bff; }
+        .btn-green { background: #28a745; }
     </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <div style="font-weight:bold; margin-bottom:20px;">Beez POS</div>
-    <div class="menu-item">客戶管理</div>
-    <div class="menu-item">產品管理</div>
-    <div class="menu-item">庫存管理</div>
-    <div class="menu-item">報表中心</div>
-</div>
+<div class="container">
+    <h2>☕ 營運管理系統</h2>
 
-<div class="main-panel">
-    <div class="product-tabs">
-        <div class="tab active">📋 產品列表</div>
-        <div class="tab">🔍 搜尋產品</div>
-        <div class="tab">❤️ 常用產品</div>
-    </div>
-    <div style="background:black; color:white; padding:10px; font-size:12px; display:flex; gap:15px;">
-        <span>3C配件類</span><span>家電</span><span>手機平板</span><span>維修類</span><span>電信合約</span>
-    </div>
-    <div class="product-grid">
-        <div class="prod-card"><div class="prod-img"></div>20W口袋電源</div>
-        <div class="prod-card"><div class="prod-img"></div>2.5D防窺AR</div>
-        <div class="prod-card"><div class="prod-img"></div>14 8G+256G</div>
-        <div class="prod-card"><div class="prod-img"></div>17 Pro Max</div>
-        <div class="prod-card"><div class="prod-img"></div>2.5D低藍光玻保</div>
-    </div>
-</div>
-
-<div class="right-panel">
-    <div class="search-box">
-        <input type="text" id="memberInput" placeholder="請掃描/輸入會員編號或姓名" oninput="doSearch()">
-        <div id="fuzzyTags"></div>
+    <div class="search-area">
+        <label>搜尋會員：</label>
+        <input type="text" id="memberInput" placeholder="輸入姓名(如: 張)..." oninput="doFuzzySearch()">
+        <div id="fuzzyList"></div>
     </div>
 
-    <div id="historyDisplay" class="history-list">
-        <div style="color:#999; text-align:center; padding-top:20px;">請搜尋會員顯示歷史與序號追蹤</div>
+    <div id="historySection" class="history-section">
+        <h3 id="currentMember" style="margin-top:0;">📋 消費歷史</h3>
+        <div id="recordList"></div>
     </div>
 
-    <div class="stock-footer">
-        <div style="font-weight:bold; font-size:14px; margin-bottom:5px;">📦 進貨/序號紀錄</div>
-        <select class="stock-input" id="buyType">
-            <option value="手機">手機進貨</option>
-            <option value="配件/其他">配件/其他商品進貨</option>
-        </select>
-        <input type="text" id="snCode" class="stock-input" placeholder="輸入 IMEI / 序號">
-        <input type="text" id="supplier" class="stock-input" placeholder="輸入進貨人 / 供應商">
-        <button class="btn-confirm" onclick="alert('記錄成功！')">確認結帳 / 進貨</button>
+    <hr style="margin: 20px 0;">
+
+    <div class="action-area">
+        <input type="text" id="snInput" placeholder="商品序號 (IMEI/SN)" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd;">
+        <input type="text" id="supplierInput" placeholder="進貨人 / 供應商" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd;">
+        
+        <button class="btn btn-blue" onclick="alert('進貨資料已記錄')">確認進貨</button>
+        <button class="btn btn-green" onclick="alert('結帳成功')">確認結帳</button>
     </div>
 </div>
 
@@ -98,45 +64,70 @@
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    let members = {};
 
-    db.ref('members').on('value', (s) => { members = s.val() || {}; });
+    let allMembers = {};
 
-    function doSearch() {
+    // 抓取雲端資料
+    db.ref('members').on('value', (s) => { 
+        allMembers = s.val() || {}; 
+        console.log("資料庫連線成功");
+    });
+
+    // 模糊搜尋核心邏輯
+    function doFuzzySearch() {
         const val = document.getElementById('memberInput').value.trim();
-        const tags = document.getElementById('fuzzyTags');
-        tags.innerHTML = '';
-        if(!val) { tags.style.display = 'none'; return; }
+        const list = document.getElementById('fuzzyList');
+        list.innerHTML = '';
 
-        const matches = Object.keys(members).filter(n => n.includes(val));
-        if(matches.length > 0) {
-            tags.style.display = 'block';
+        if (!val) { list.style.display = 'none'; return; }
+
+        // 找出所有名字裡包含這個字的人
+        const matches = Object.keys(allMembers).filter(name => name.includes(val));
+
+        if (matches.length > 0) {
+            list.style.display = 'block';
             matches.forEach(name => {
                 const div = document.createElement('div');
-                div.className = 'tag-item';
+                div.className = 'fuzzy-item';
                 div.innerText = name;
-                div.onclick = () => { selectMember(name); };
-                tags.appendChild(div);
+                div.onclick = () => {
+                    document.getElementById('memberInput').value = name;
+                    showHistory(name);
+                    list.style.display = 'none';
+                };
+                list.appendChild(div);
             });
+        } else {
+            list.style.display = 'none';
         }
-        if(members[val]) selectMember(val);
+
+        // 如果輸入的是完整正確的名字，直接秀出歷史
+        if (allMembers[val]) {
+            showHistory(val);
+            list.style.display = 'none';
+        }
     }
 
-    function selectMember(name) {
-        document.getElementById('memberInput').value = name;
-        document.getElementById('fuzzyTags').style.display = 'none';
-        const display = document.getElementById('historyDisplay');
-        display.innerHTML = `<strong>${name} 的歷史紀錄：</strong><br>`;
+    function showHistory(name) {
+        const section = document.getElementById('historySection');
+        const list = document.getElementById('recordList');
+        document.getElementById('currentMember').innerText = "📋 " + name + " 的紀錄";
         
-        const history = members[name].history;
-        Object.values(history).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(h => {
-            display.innerHTML += `
-                <div class="history-entry">
-                    <span style="color:#888; font-size:11px;">${h.date}</span><br>
-                    ${h.item} <span style="color:red; float:right;">$${h.price}</span>
-                    ${h.sn ? `<span class="sn-track">序號：${h.sn} | 進貨：${h.supplier || '網路'}</span>` : ''}
-                </div>`;
+        list.innerHTML = '';
+        const historyData = allMembers[name].history;
+        const sorted = Object.values(historyData).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+        sorted.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'record';
+            div.innerHTML = `
+                <div style="font-size:12px; color:#888;">${item.date}</div>
+                <div>${item.item} <span class="price">$${item.price}</span></div>
+                ${item.sn ? `<span class="sn-info">序號：${item.sn} | 進貨：${item.supplier || '未註記'}</span>` : ''}
+            `;
+            list.appendChild(div);
         });
+        section.style.display = 'block';
     }
 </script>
 
