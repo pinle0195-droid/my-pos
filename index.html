@@ -3,153 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINLE 3C | 手機號碼查詢版</title>
+    <title>PINLE 3C | 全功能 POS 系統</title>
     <style>
-        /* Cyberbiz 淺綠風格 */
-        :root { --pinle-green: #52b788; --pinle-dark: #2d3436; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
-        .card { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 8px solid var(--pinle-green); }
+        :root { --cb-green: #52b788; --cb-dark: #2d3436; --cb-bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--cb-bg); margin: 0; padding: 10px; }
+        .card { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-top: 6px solid var(--cb-green); }
+        .logo { font-size: 24px; font-weight: bold; color: var(--cb-green); text-align: center; display: block; margin-bottom: 15px; }
         
-        h2, h3 { color: var(--pinle-dark); text-align: center; }
-        .logo { color: var(--pinle-green); font-weight: bold; font-size: 24px; margin-bottom: 20px; display: block; text-align: center; }
+        /* 分頁切換 */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 12px; text-align: center; background: #eee; border-radius: 8px; cursor: pointer; font-weight: bold; color: #666; }
+        .tab.active { background: var(--cb-green); color: white; }
 
         .form-group { margin-bottom: 15px; }
-        label { font-size: 14px; font-weight: bold; color: #636e72; display: block; margin-bottom: 5px; }
+        label { font-size: 13px; font-weight: bold; color: #636e72; display: block; margin-bottom: 5px; }
         input, select { width: 100%; padding: 12px; border: 1px solid #dfe6e9; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
         
-        /* 搜尋建議 */
-        #sugg { display: none; background: #f1fcf7; padding: 10px; border-radius: 8px; margin-top: -10px; margin-bottom: 15px; }
-        .tag { display: inline-block; background: white; color: var(--pinle-green); border: 1px solid var(--pinle-green); padding: 5px 12px; margin: 4px; border-radius: 20px; cursor: pointer; font-size: 14px; }
+        /* 模糊搜尋建議 */
+        .sugg-box { display: none; background: #f1fcf7; padding: 8px; border-radius: 8px; margin-top: -10px; margin-bottom: 15px; border: 1px solid var(--cb-green); }
+        .tag { display: inline-block; background: white; color: var(--cb-green); border: 1px solid var(--cb-green); padding: 5px 12px; margin: 4px; border-radius: 20px; cursor: pointer; font-size: 13px; }
 
-        /* 查詢結果表格 - 照你提供的版本還原 */
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { background: #f8f9fa; padding: 10px; border: 1px solid #ddd; font-size: 14px; }
-        td { padding: 10px; border: 1px solid #ddd; font-size: 14px; text-align: center; }
-        .sn-text { font-size: 11px; color: #7f8c8d; background: #eee; display: block; margin-top: 4px; padding: 2px; border-radius: 4px; }
+        /* 表格樣式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { border: 1px solid #eee; padding: 10px; text-align: center; }
+        th { background: #f8f9fa; color: #666; }
+        .sn-info { font-size: 11px; color: #999; display: block; }
 
-        /* 按鈕 */
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; color: white; }
-        .btn-pay { background-color: var(--pinle-green); }
-        .btn-stock { background-color: var(--pinle-dark); margin-top: 10px; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; color: white; margin-top: 10px; }
+        .btn-pay { background: var(--cb-green); }
+        .btn-stock { background: var(--cb-dark); }
+        
+        .section { display: none; }
+        .section.active { display: block; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <span class="logo">PINLE 3C</span>
-    <h3>🔍 會員消費紀錄查詢</h3>
-    
-    <div class="form-group">
-        <label>輸入手機號碼或姓名 (智慧建議)</label>
-        <input type="tel" id="search-phone" placeholder="例如：0912345678 或 姓名" oninput="doSmartSearch()">
-        <div id="sugg"></div>
-        <button class="btn btn-pay" style="margin-top:10px;" onclick="searchMember()">即時查詢購買紀錄</button>
+    <span class="logo">PINLE 3C POS</span>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('sale')">🛒 結帳銷售</div>
+        <div class="tab" onclick="switchTab('stock')">📦 進貨管理</div>
+        <div class="tab" onclick="switchTab('search')">🔍 客戶查詢</div>
     </div>
 
-    <div id="search-result" style="display:none; margin-top:20px;">
-        <h4 id="display-name" style="color:var(--pinle-dark);">客戶姓名：---</h4>
-        <table>
-            <thead>
-                <tr>
-                    <th>日期</th>
-                    <th>品名</th>
-                    <th>金額</th>
-                </tr>
-            </thead>
-            <tbody id="member-history-table"></tbody>
-        </table>
+    <div id="sale-sec" class="section active">
+        <div class="form-group">
+            <label>1. 掃描序號 或 輸入品名 (自動帶出庫存)</label>
+            <input type="text" id="sale-scan" placeholder="掃描 IMEI/SN 或 輸入關鍵字" oninput="autoFetchProduct()">
+        </div>
+        <div class="form-group">
+            <label>2. 購買人姓名/電話</label>
+            <input type="text" id="sale-buyer" placeholder="輸入客戶姓名或手機" oninput="memberBlurSearch('sale-buyer', 'sale-sugg')">
+            <div id="sale-sugg" class="sugg-box"></div>
+        </div>
+        <div style="background: #f1fcf7; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <p>品名：<b id="auto-item-name">---</b></p>
+            <p>成本：<b id="auto-cost" style="color:#e74c3c;">---</b> (連動扣除)</p>
+            <label>成交金額</label>
+            <input type="number" id="sale-price" placeholder="請輸入售價">
+        </div>
+        <button class="btn btn-pay" onclick="handleSale()">確認結帳並扣庫存</button>
     </div>
 
-    <hr style="margin: 30px 0; border: 0.5px solid #eee;">
+    <div id="stock-sec" class="section">
+        <label>進貨類型</label>
+        <select id="stk-type">
+            <option value="手機">📱 手機</option>
+            <option value="配件">🎧 配件/其他</option>
+        </select>
+        <label>商品序號 (IMEI/SN)</label>
+        <input type="text" id="stk-sn" placeholder="請掃描序號">
+        <label>品名</label>
+        <input type="text" id="stk-name" placeholder="輸入商品全名">
+        <label>進貨成本</label>
+        <input type="number" id="stk-cost" placeholder="進貨成本金額">
+        <label>進貨來源/供應商</label>
+        <input type="text" id="stk-source" placeholder="供應商名稱">
+        <button class="btn btn-stock" onclick="handleStock()">確認進貨入庫</button>
+    </div>
 
-    <h3>📦 進貨與結帳入庫</h3>
-    <label>進貨/銷售類型</label>
-    <select id="item-type">
-        <option value="配件進貨">配件 / 其他商品進貨</option>
-        <option value="手機進貨">手機商品進貨</option>
-    </select>
-    
-    <input type="text" id="sn-code" placeholder="商品序號 (IMEI/SN)">
-    <input type="text" id="supplier-name" placeholder="進貨人 / 供應商">
-    <input type="text" id="item-name" placeholder="品名">
-    <input type="number" id="item-price" placeholder="金額">
+    <div id="search-sec" class="section">
+        <label>輸入客戶姓名或手機 (模糊/精準搜尋)</label>
+        <input type="text" id="find-key" placeholder="例如：陳大明 或 0912..." oninput="memberBlurSearch('find-key', 'find-sugg')">
+        <div id="find-sugg" class="sugg-box"></div>
+        <button class="btn btn-pay" onclick="searchHistory()">查詢購買紀錄</button>
 
-    <button class="btn btn-stock" onclick="alert('進貨記錄成功')">確認記錄 / 進貨</button>
+        <div id="res-div" style="display:none; margin-top:20px;">
+            <h4 id="res-name">客戶：---</h4>
+            <table>
+                <thead>
+                    <tr><th>日期</th><th>品項與序號</th><th>金額</th></tr>
+                </thead>
+                <tbody id="res-table"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, set, get, push, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyC2cr8CgW6v19XhrnMC6eUX3Zo3WiE0824",
-      authDomain: "mypos2026-2625d.firebaseapp.com",
-      projectId: "mypos2026-2625d",
-      databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // 智慧搜尋建議邏輯
-    window.doSmartSearch = async function() {
-        const val = document.getElementById('search-phone').value.trim();
-        const sugg = document.getElementById('sugg');
-        if(!val) { sugg.style.display = 'none'; return; }
-
-        const snapshot = await get(ref(db, 'members'));
-        if (snapshot.exists()) {
-            const all = snapshot.val();
-            const matches = Object.keys(all).filter(k => k.includes(val) || (all[k].name && all[k].name.includes(val)));
-            if(matches.length > 0) {
-                sugg.style.display = 'block';
-                sugg.innerHTML = matches.slice(0, 5).map(m => `<span class="tag" onclick="selectTag('${m}')">${all[m].name || m}</span>`).join('');
-            }
-        }
-    }
-
-    window.selectTag = function(val) {
-        document.getElementById('search-phone').value = val;
-        document.getElementById('sugg').style.display = 'none';
-        searchMember();
-    }
-
-    // 還原原本的查詢函數
-    window.searchMember = async function() {
-        const key = document.getElementById('search-phone').value;
-        const tableBody = document.getElementById('member-history-table');
-        const resultDiv = document.getElementById('search-result');
-
-        if(!key) return alert("請輸入電話或姓名");
-
-        const memberRef = ref(db, 'members/' + key);
-        const snapshot = await get(memberRef);
-
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            document.getElementById('display-name').innerText = "客戶姓名：" + (data.name || "未知");
-            
-            let html = "";
-            if(data.history) {
-                // 將物件轉陣列並反轉，顯示最新紀錄
-                const historyArray = Object.values(data.history);
-                historyArray.reverse().forEach(item => {
-                    html += `<tr>
-                        <td>${item.date}</td>
-                        <td>${item.item}${item.sn ? `<span class="sn-text">序號: ${item.sn} (${item.supplier || '進貨'})</span>` : ''}</td>
-                        <td>$ ${item.price}</td>
-                    </tr>`;
-                });
-            } else {
-                html = "<tr><td colspan='3'>無購買紀錄</td></tr>";
-            }
-            tableBody.innerHTML = html;
-            resultDiv.style.display = 'block';
-        } else {
-            alert("找不到該會員資料");
-        }
-    }
-</script>
-
-</body>
-</html>
+      apiKey: "AIzaSyC2cr8CgW6v19XhrnMC6eUX3Zo3WiE0824
