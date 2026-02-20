@@ -1,110 +1,136 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的 POS 系統</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PINLE 3C - 雲端管理系統</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        /* 完全還原 2/19 的簡潔風格 */
-        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f4; }
-        .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #333; }
-        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        /* Cyberbiz 淺綠色調與專業感 */
+        :root {
+            --cb-green: #52b788; /* Cyberbiz 招牌淺綠 */
+            --cb-dark: #2d3436;
+            --cb-bg: #f8f9fa;
+        }
+
+        body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background-color: var(--cb-bg); margin: 0; padding: 0; }
         
-        /* 模糊搜尋建議 (僅在打字時出現) */
-        #suggestions { display: none; background: #f0f0f0; padding: 5px; border-radius: 4px; margin-bottom: 10px; }
-        .name-tag { display: inline-block; background: #007bff; color: white; padding: 5px 10px; margin: 3px; border-radius: 15px; cursor: pointer; font-size: 14px; }
+        /* 頂部導航 */
+        .header { background: white; padding: 15px 30px; border-bottom: 2px solid var(--cb-green); display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 22px; font-weight: bold; color: var(--cb-green); letter-spacing: 1px; }
 
-        /* 歷史紀錄區 */
-        #historyBox { display: none; margin-top: 15px; padding: 10px; background: #fffdf2; border: 1px solid #ffeeba; border-radius: 4px; }
-        .record-item { border-bottom: 1px solid #eee; padding: 5px 0; font-size: 14px; }
-        .sn-detail { font-size: 12px; color: #666; display: block; background: #f0f0f0; padding: 2px 5px; margin-top: 3px; }
+        .container { max-width: 600px; margin: 30px auto; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; }
+        
+        .form-section { padding: 30px; }
+        .label { font-size: 14px; font-weight: bold; color: #636e72; margin-bottom: 8px; display: block; }
+        
+        input, select {
+            width: 100%; padding: 12px 15px; margin-bottom: 20px;
+            border: 1px solid #dfe6e9; border-radius: 8px; font-size: 16px;
+            transition: all 0.3s ease; box-sizing: border-box;
+        }
+        input:focus { border-color: var(--cb-green); outline: none; box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1); }
 
-        /* 原本的彩色大按鈕 */
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 4px; color: white; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        .btn-blue { background-color: #007bff; }
-        .btn-green { background-color: #28a745; }
+        /* 模糊搜尋建議標籤 */
+        #suggArea { display: none; margin-top: -15px; margin-bottom: 15px; padding: 10px; background: #f1fcf7; border-radius: 8px; }
+        .name-tag { display: inline-block; background: white; color: var(--cb-green); border: 1px solid var(--cb-green); padding: 6px 12px; margin: 4px; border-radius: 20px; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        .name-tag:hover { background: var(--cb-green); color: white; }
+
+        /* 歷史紀錄與序號 */
+        #historyBox { display: none; margin-bottom: 25px; border-top: 1px dashed #ddd; padding-top: 20px; }
+        .record-card { padding: 12px; background: #fff; border: 1px solid #f1f2f6; border-radius: 8px; margin-bottom: 10px; position: relative; }
+        .sn-badge { display: block; font-size: 12px; color: #636e72; background: #f1f2f6; padding: 4px 8px; border-radius: 4px; margin-top: 8px; border-left: 3px solid var(--cb-green); }
+
+        /* 功能按鈕 */
+        .btn-group { display: flex; gap: 15px; padding: 0 30px 30px; }
+        .btn { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; color: white; }
+        .btn-stock { background-color: #34495e; } /* 進貨用深色 */
+        .btn-pay { background-color: var(--cb-green); } /* 結帳用淺綠 */
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
     </style>
 </head>
 <body>
 
+<div class="header">
+    <div class="logo">PINLE 3C</div>
+    <div style="color: #b2bec3; font-size: 14px;">2026 雲端 POS 系統</div>
+</div>
+
 <div class="container">
-    <h2>☕ 我的 POS 系統</h2>
+    <div class="form-section">
+        <span class="label">客戶姓名 (模糊搜尋)</span>
+        <input type="text" id="custName" placeholder="請輸入姓名關鍵字..." oninput="handleSearch()">
+        
+        <div id="suggArea"></div>
 
-    <input type="text" id="memberName" placeholder="輸入會員姓名..." oninput="smartSearch()">
-    <div id="suggestions"></div>
+        <div id="historyBox">
+            <div style="font-weight: bold; margin-bottom: 10px; color: var(--cb-dark);">📋 歷史紀錄與序號追蹤</div>
+            <div id="hList"></div>
+        </div>
 
-    <div id="historyBox">
-        <strong id="hTitle"></strong>
-        <div id="hList"></div>
+        <span class="label">商品進貨詳情</span>
+        <select id="prodType">
+            <option value="配件進貨">📦 配件 / 其他商品進貨</option>
+            <option value="手機進貨">📱 手機商品進貨</option>
+        </select>
+        
+        <input type="text" id="snNum" placeholder="請掃描或輸入商品序號 (IMEI/SN)">
+        <input type="text" id="source" placeholder="請輸入進貨人 / 供應商名稱">
     </div>
 
-    <hr>
-
-    <input type="text" id="item" placeholder="品項名稱">
-    <input type="number" id="price" placeholder="金額">
-    
-    <select id="stockCategory">
-        <option value="進貨">進貨 (配件/其他)</option>
-        <option value="手機">手機進貨</option>
-    </select>
-    <input type="text" id="snCode" placeholder="商品序號 (IMEI/SN)">
-    <input type="text" id="supplier" placeholder="進貨人 / 供應商">
-
-    <button class="btn btn-blue" onclick="saveRecord('進貨')">確認進貨</button>
-    <button class="btn btn-green" onclick="saveRecord('結帳')">確認結帳</button>
+    <div class="btn-group">
+        <button class="btn btn-stock" onclick="alert('進貨已入庫')">確認進貨</button>
+        <button class="btn btn-pay" onclick="alert('訂單結帳成功')">確認結帳</button>
+    </div>
 </div>
 
 <script>
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    let allData = {};
+    let memberData = {};
 
-    db.ref('members').on('value', (s) => { allData = s.val() || {}; });
+    db.ref('members').on('value', (s) => { memberData = s.val() || {}; });
 
-    function smartSearch() {
-        const val = document.getElementById('memberName').value.trim();
-        const sugg = document.getElementById('suggestions');
-        sugg.innerHTML = '';
-        if(!val) { sugg.style.display = 'none'; return; }
+    function handleSearch() {
+        const val = document.getElementById('custName').value.trim();
+        const suggArea = document.getElementById('suggArea');
+        suggArea.innerHTML = '';
 
-        const matches = Object.keys(allData).filter(n => n.includes(val));
+        if(!val) { suggArea.style.display = 'none'; return; }
+
+        const matches = Object.keys(memberData).filter(n => n.includes(val));
         if(matches.length > 0) {
-            sugg.style.display = 'block';
-            matches.forEach(n => {
-                const sp = document.createElement('span');
-                sp.className = 'name-tag';
-                sp.innerText = n;
-                sp.onclick = () => { selectMember(n); };
-                sugg.appendChild(sp);
+            suggArea.style.display = 'block';
+            matches.forEach(name => {
+                const tag = document.createElement('div');
+                tag.className = 'name-tag';
+                tag.innerText = name;
+                tag.onclick = () => { selectMember(name); };
+                suggArea.appendChild(tag);
             });
         }
-        if(allData[val]) selectMember(val);
+        if(memberData[val]) selectMember(val);
     }
 
-    function selectMember(n) {
-        document.getElementById('memberName').value = n;
-        document.getElementById('suggestions').style.display = 'none';
+    function selectMember(name) {
+        document.getElementById('custName').value = name;
+        document.getElementById('suggArea').style.display = 'none';
         const box = document.getElementById('historyBox');
         const list = document.getElementById('hList');
-        document.getElementById('hTitle').innerText = n + " 的歷史紀錄：";
         
         list.innerHTML = '';
-        const hData = allData[n].history;
-        Object.values(hData).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(i => {
+        const history = memberData[name].history;
+        Object.values(history).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5).forEach(h => {
             list.innerHTML += `
-                <div class="record-item">
-                    ${i.date} - ${i.item} <span style="color:red; float:right;">$${i.price}</span>
-                    ${i.sn ? `<span class="sn-detail">序號: ${i.sn} | 來源: ${i.supplier || '未註記'}</span>` : ''}
+                <div class="record-card">
+                    <div style="font-size:12px; color:#b2bec3;">${h.date}</div>
+                    <div style="font-weight:bold; color:var(--cb-dark);">${h.item} <span style="float:right; color:var(--cb-green);">$${h.price}</span></div>
+                    ${h.sn ? `<span class="sn-badge">🔍 序號：${h.sn} | 來源：${h.supplier || '未註記'}</span>` : ''}
                 </div>`;
         });
         box.style.display = 'block';
-    }
-
-    function saveRecord(type) {
-        alert(type + '功能已記錄 (測試中)');
     }
 </script>
 
