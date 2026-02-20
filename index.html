@@ -3,34 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINLE 3C | POS系統</title>
+    <title>PINLE 3C POS</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --pinle-green: #52b788; --pinle-dark: #2d3436; }
+        :root { --pinle-green: #52b788; }
         body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 10px; }
         .card { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); border-top: 8px solid var(--pinle-green); }
-        .logo { font-size: 22px; font-weight: bold; color: var(--pinle-green); text-align: center; display: block; margin-bottom: 15px; }
         .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
         .tab { flex: 1; padding: 12px 5px; text-align: center; background: #eee; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .tab.active { background: var(--pinle-green); color: white; }
         .section { display: none; }
         .section.active { display: block; }
-        .input-group { margin-bottom: 15px; }
+        .input-group { margin-bottom: 12px; }
         label { font-size: 14px; font-weight: bold; display: block; margin-bottom: 5px; }
         input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
         .info-box { background: #fffcf0; padding: 15px; border-radius: 12px; border: 1px solid #ffeeba; margin-bottom: 15px; }
-        .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; color: white; cursor: pointer; margin-bottom: 10px; }
-        .btn-pay { background: var(--pinle-green); }
-        .btn-search { background: #0984e3; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; color: white; cursor: pointer; }
         .history-item { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <span class="logo">PINLE 3C POS</span>
+    <div style="text-align:center; color:var(--pinle-green); font-size:22px; font-weight:bold; margin-bottom:15px;">PINLE 3C POS</div>
     <div class="tabs">
         <div class="tab active" id="tab-sale" onclick="switchTab('sale')">🛒 銷售結帳</div>
         <div class="tab" id="tab-customer" onclick="switchTab('customer')">🔍 客戶查詢</div>
@@ -39,15 +35,13 @@
 
     <div id="sec-sale" class="section active">
         <div class="input-group">
-            <label>1. 掃描序號 (IMEI)</label>
-            <input type="text" id="sale-scan" placeholder="掃描或輸入序號" oninput="autoFetch()">
+            <label>1. 掃描序號 (IMEI/SN)</label>
+            <input type="text" id="sale-scan" placeholder="掃描或手輸" oninput="autoFetch()">
         </div>
         <div class="info-box">
-            <div class="info-row"><span>品名：</span><b id="res-item">---</b></div>
-            <div class="info-row"><span>成本：</span><b id="res-cost">$0</b></div>
-            <div class="info-row" style="border-top: 1px dashed #ccc; padding-top:5px; margin-top:5px; color:#e74c3c;">
-                <span>預估毛利：</span><b id="res-profit">$0</b>
-            </div>
+            <div>品名：<b id="res-item">---</b></div>
+            <div>成本：<b id="res-cost">$0</b></div>
+            <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預估毛利：<b id="res-profit">$0</b></div>
         </div>
         <div class="input-group"><label>2. 購買人姓名</label><input type="text" id="sale-buyer" placeholder="輸入姓名"></div>
         <div class="input-group">
@@ -62,21 +56,21 @@
         <div class="input-group"><label>4. 成交售價</label><input type="number" id="sale-price" placeholder="輸入售價" oninput="calculateProfit()"></div>
         <div class="input-group">
             <label>5. 承辦人</label>
-            <select id="staff-select"><option value="坤霖">坤霖</option><option value="思璇">思璇</option><option value="䕒尹">䕒尹</option></select>
+            <select id="staff-select">
+                <option value="坤霖">坤霖</option><option value="思璇">思璇</option><option value="䕒尹">䕒尹</option>
+            </select>
         </div>
-        <button class="btn btn-pay" id="btn-pay-exec">確認結帳並同步 Excel</button>
+        <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec">確認結帳並同步 Excel</button>
     </div>
 
     <div id="sec-customer" class="section">
-        <label>🔍 查詢客戶姓名或序號</label>
-        <input type="text" id="cust-search-input" placeholder="例如：思璇 或 IMEI">
-        <button class="btn btn-search" style="margin-top:10px;" onclick="searchCustomer()">立即搜尋</button>
+        <div class="input-group"><label>🔍 查詢客戶姓名或序號</label><input type="text" id="cust-search-input" placeholder="輸入關鍵字"></div>
+        <button class="btn" style="background:#0984e3;" onclick="searchCustomer()">立即搜尋</button>
         <div id="search-result-display" style="margin-top:15px;"></div>
     </div>
 
     <div id="sec-daily" class="section">
-        <button class="btn" style="background:var(--pinle-dark);" onclick="generateReport()">生成今日日結報告</button>
-        <div id="report-display" class="info-box" style="display:none; background:#2d3436; color:white;"></div>
+        <button class="btn" style="background:#2d3436;" onclick="alert('請先在結帳頁面完成交易')">生成今日日結報告</button>
     </div>
 </div>
 
@@ -87,16 +81,15 @@
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0LUrBXzS_FK0jzszc_C-LnTQBn1mrMCw2gpq9G6dKPOiVYQQWf9uBWCh972vn-bEuSQ/exec";
 
     let currentCost = 0;
-
     window.switchTab = (t) => {
         document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
         document.getElementById('tab-'+t).classList.add('active');
         document.getElementById('sec-'+t).classList.add('active');
-    }
+    };
 
-    // IMEI 帶出庫存邏輯
     window.autoFetch = () => {
-        const sn = document.getElementById('sale-scan').value.trim();
+        // 同樣過濾特殊符號確保與後端一致
+        const sn = document.getElementById('sale-scan').value.trim().replace(/[\.\#\$\/\[\]]/g, "");
         if (sn.length < 3) return;
         db.ref('inventory/' + sn).once('value').then(snap => {
             if (snap.exists()) {
@@ -117,21 +110,21 @@
         document.getElementById('res-profit').innerText = "$" + Math.round(price - currentCost);
     };
 
-    // 客戶資料查詢邏輯 (修正：比對 consumerName)
     window.searchCustomer = () => {
         const k = document.getElementById('cust-search-input').value.trim();
-        if (!k) return alert("請輸入關鍵字");
+        if (!k) return;
         const disp = document.getElementById('search-result-display');
         disp.innerHTML = "搜尋中...";
         db.ref('Accounting_2026').once('value').then(snap => {
             let html = "";
             snap.forEach(c => {
                 const d = c.val();
+                // 同時搜尋購買人姓名與備註中的序號
                 if ((d.consumerName && d.consumerName.includes(k)) || (d.note && d.note.includes(k))) {
                     html = `<div class="history-item">📅 ${d.日期}<br>👤 ${d.consumerName}<br>💰 $${d.現金收入 || d.非現金收入} (${d.付款方式})<br>📝 ${d.note || ''}</div>` + html;
                 }
             });
-            disp.innerHTML = html || "查無此客戶或紀錄";
+            disp.innerHTML = html || "查無紀錄";
         });
     };
 
@@ -142,21 +135,16 @@
         const method = document.getElementById('pay-method').value;
         const staff = document.getElementById('staff-select').value;
         const itemName = document.getElementById('res-item').innerText;
-
         if (!buyer || !price || itemName.includes("❌")) return alert("請確認資料正確");
 
         const date = new Date().toLocaleDateString('zh-TW');
-        const payload = {
-            date: date, incomeType: "銷售", payMethod: method, consumerName: buyer + " - " + itemName,
-            nonCashAmt: (method === "現金") ? "" : price, cashAmt: (method === "現金") ? price : "",
-            note: "序號:" + sn, staff: staff
-        };
+        const payload = { date: date, payMethod: method, consumerName: buyer + " - " + itemName, nonCashAmt: (method === "現金") ? "" : price, cashAmt: (method === "現金") ? price : "", note: "序號:" + sn, staff: staff };
 
-        this.innerText = "傳送中...";
+        this.innerText = "同步中...";
         fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
         .then(() => {
-            db.ref('Accounting_2026').push({ 日期: date, 類別: "銷售", 付款方式: method, 現金收入: (method === "現金") ? price : 0, 非現金收入: (method !== "現金") ? price : 0, consumerName: buyer + " - " + itemName, note: "序號:" + sn });
-            db.ref('inventory/' + sn).remove();
+            db.ref('Accounting_2026').push({ 日期: date, 付款方式: method, 現金收入: (method === "現金") ? price : 0, 非現金收入: (method !== "現金") ? price : 0, consumerName: buyer + " - " + itemName, note: "序號:" + sn });
+            db.ref('inventory/' + sn.replace(/[\.\#\$\/\[\]]/g, "")).remove();
             alert("結帳成功！");
             location.reload();
         });
