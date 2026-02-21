@@ -24,7 +24,6 @@
     </style>
 </head>
 <body>
-
 <div class="card">
     <div style="text-align:center; color:var(--pinle-green); font-size:22px; font-weight:bold; margin-bottom:15px;">PINLE 3C POS</div>
     <div class="tabs">
@@ -32,16 +31,15 @@
         <div class="tab" id="tab-customer" onclick="switchTab('customer')">🔍 客戶查詢</div>
         <div class="tab" id="tab-daily" onclick="switchTab('daily')">📊 日結報告</div>
     </div>
-
     <div id="sec-sale" class="section active">
         <div class="input-group">
             <label>1. 掃描序號 (IMEI/SN)</label>
-            <input type="text" id="sale-scan" placeholder="掃描或手輸" oninput="autoFetch()">
+            <input type="text" id="sale-scan" placeholder="請輸入序號" oninput="autoFetch()">
         </div>
         <div class="info-box">
             <div>品名：<b id="res-item">---</b></div>
             <div>成本：<b id="res-cost">$0</b></div>
-            <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預估毛利：<b id="res-profit">$0</b></div>
+            <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預算毛利：<b id="res-profit">$0</b></div>
         </div>
         <div class="input-group"><label>2. 購買人姓名</label><input type="text" id="sale-buyer" placeholder="輸入姓名"></div>
         <div class="input-group">
@@ -62,18 +60,15 @@
         </div>
         <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec">確認結帳並同步 Excel</button>
     </div>
-
     <div id="sec-customer" class="section">
         <div class="input-group"><label>🔍 查詢客戶姓名或序號</label><input type="text" id="cust-search-input" placeholder="輸入關鍵字"></div>
         <button class="btn" style="background:#0984e3;" onclick="searchCustomer()">立即搜尋</button>
         <div id="search-result-display" style="margin-top:15px;"></div>
     </div>
-
     <div id="sec-daily" class="section">
         <button class="btn" style="background:#2d3436;" onclick="alert('請先在結帳頁面完成交易')">生成今日日結報告</button>
     </div>
 </div>
-
 <script>
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -88,7 +83,6 @@
     };
 
     window.autoFetch = () => {
-        // 同樣過濾特殊符號確保與後端一致
         const sn = document.getElementById('sale-scan').value.trim().replace(/[\.\#\$\/\[\]]/g, "");
         if (sn.length < 3) return;
         db.ref('inventory/' + sn).once('value').then(snap => {
@@ -119,7 +113,6 @@
             let html = "";
             snap.forEach(c => {
                 const d = c.val();
-                // 同時搜尋購買人姓名與備註中的序號
                 if ((d.consumerName && d.consumerName.includes(k)) || (d.note && d.note.includes(k))) {
                     html = `<div class="history-item">📅 ${d.日期}<br>👤 ${d.consumerName}<br>💰 $${d.現金收入 || d.非現金收入} (${d.付款方式})<br>📝 ${d.note || ''}</div>` + html;
                 }
@@ -140,12 +133,12 @@
         const date = new Date().toLocaleDateString('zh-TW');
         const payload = { date: date, payMethod: method, consumerName: buyer + " - " + itemName, nonCashAmt: (method === "現金") ? "" : price, cashAmt: (method === "現金") ? price : "", note: "序號:" + sn, staff: staff };
 
-        this.innerText = "同步中...";
+        this.innerText = "傳送中...";
         fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
         .then(() => {
             db.ref('Accounting_2026').push({ 日期: date, 付款方式: method, 現金收入: (method === "現金") ? price : 0, 非現金收入: (method !== "現金") ? price : 0, consumerName: buyer + " - " + itemName, note: "序號:" + sn });
             db.ref('inventory/' + sn.replace(/[\.\#\$\/\[\]]/g, "")).remove();
-            alert("結帳成功！");
+            alert("結帳成功！資料已傳送至 Excel 流水帳。");
             location.reload();
         });
     });
