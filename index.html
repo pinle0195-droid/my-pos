@@ -10,7 +10,7 @@
         :root { --pinle-green: #52b788; }
         body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 10px; }
         .card { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); border-top: 8px solid var(--pinle-green); }
-        .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
         .tab { flex: 1; padding: 12px 5px; text-align: center; background: #eee; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .tab.active { background: var(--pinle-green); color: white; }
         .section { display: none; }
@@ -27,21 +27,22 @@
 <div class="card">
     <div style="text-align:center; color:var(--pinle-green); font-size:22px; font-weight:bold; margin-bottom:15px;">PINLE 3C POS</div>
     <div class="tabs">
-        <div class="tab active" id="tab-sale" onclick="switchTab('sale')">🛒 銷售結帳</div>
-        <div class="tab" id="tab-customer" onclick="switchTab('customer')">🔍 客戶查詢</div>
-        <div class="tab" id="tab-daily" onclick="switchTab('daily')">📊 日結報告</div>
+        <div class="tab active" onclick="switchTab('sale')" id="tab-sale">🛒 銷售結帳</div>
+        <div class="tab" onclick="switchTab('customer')" id="tab-customer">🔍 客戶查詢</div>
+        <div class="tab" onclick="switchTab('daily')" id="tab-daily">📊 日結報告</div>
     </div>
+
     <div id="sec-sale" class="section active">
         <div class="input-group">
-            <label>1. 掃描序號 (IMEI/SN)</label>
-            <input type="text" id="sale-scan" placeholder="請輸入序號" oninput="autoFetch()">
+            <label>1. 掃描序號 (支援手機/穿戴/家電)</label>
+            <input type="text" id="sale-scan" placeholder="掃描 IMEI 或 SN" oninput="autoFetch()">
         </div>
         <div class="info-box">
             <div>品名：<b id="res-item">---</b></div>
             <div>成本：<b id="res-cost">$0</b></div>
-            <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預算毛利：<b id="res-profit">$0</b></div>
+            <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預估毛利：<b id="res-profit">$0</b></div>
         </div>
-        <div class="input-group"><label>2. 購買人姓名</label><input type="text" id="sale-buyer" placeholder="輸入姓名"></div>
+        <div class="input-group"><label>2. 購買人姓名 (含符號可)</label><input type="text" id="sale-buyer" placeholder="輸入姓名"></div>
         <div class="input-group">
             <label>3. 付款方式</label>
             <select id="pay-method" onchange="calculateProfit()">
@@ -60,15 +61,21 @@
         </div>
         <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec">確認結帳並同步 Excel</button>
     </div>
+
     <div id="sec-customer" class="section">
-        <div class="input-group"><label>🔍 查詢客戶姓名或序號</label><input type="text" id="cust-search-input" placeholder="輸入關鍵字"></div>
+        <div class="input-group">
+            <label>🔍 搜尋姓名或序號 (支援符號與模糊比對)</label>
+            <input type="text" id="cust-search-input" placeholder="輸入關鍵字">
+        </div>
         <button class="btn" style="background:#0984e3;" onclick="searchCustomer()">立即搜尋</button>
         <div id="search-result-display" style="margin-top:15px;"></div>
     </div>
+
     <div id="sec-daily" class="section">
         <button class="btn" style="background:#2d3436;" onclick="alert('請先在結帳頁面完成交易')">生成今日日結報告</button>
     </div>
 </div>
+
 <script>
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -104,26 +111,32 @@
         document.getElementById('res-profit').innerText = "$" + Math.round(price - currentCost);
     };
 
+    // --- 強化搜尋：處理符號與空格 ---
     window.searchCustomer = () => {
-        const k = document.getElementById('cust-search-input').value.trim();
+        const k = document.getElementById('cust-search-input').value.trim().toLowerCase();
         if (!k) return;
         const disp = document.getElementById('search-result-display');
-        disp.innerHTML = "搜尋中...";
+        disp.innerHTML = "🔍 搜尋中...";
+        
         db.ref('Accounting_2026').once('value').then(snap => {
             let html = "";
             snap.forEach(c => {
                 const d = c.val();
-                if ((d.consumerName && d.consumerName.includes(k)) || (d.note && d.note.includes(k))) {
+                const name = (d.consumerName || "").toLowerCase();
+                const note = (d.note || "").toLowerCase();
+                
+                // 模糊搜尋邏輯：檢查關鍵字是否被包含在姓名或備註中
+                if (name.includes(k) || note.includes(k)) {
                     html = `<div class="history-item">📅 ${d.日期}<br>👤 ${d.consumerName}<br>💰 $${d.現金收入 || d.非現金收入} (${d.付款方式})<br>📝 ${d.note || ''}</div>` + html;
                 }
             });
-            disp.innerHTML = html || "查無紀錄";
+            disp.innerHTML = html || "❌ 查無 2026 紀錄。";
         });
     };
 
     document.getElementById('btn-pay-exec').addEventListener('click', function() {
         const sn = document.getElementById('sale-scan').value.trim();
-        const buyer = document.getElementById('sale-buyer').value;
+        const buyer = document.getElementById('sale-buyer').value.trim();
         const price = parseFloat(document.getElementById('sale-price').value);
         const method = document.getElementById('pay-method').value;
         const staff = document.getElementById('staff-select').value;
@@ -131,14 +144,23 @@
         if (!buyer || !price || itemName.includes("❌")) return alert("請確認資料正確");
 
         const date = new Date().toLocaleDateString('zh-TW');
-        const payload = { date: date, payMethod: method, consumerName: buyer + " - " + itemName, nonCashAmt: (method === "現金") ? "" : price, cashAmt: (method === "現金") ? price : "", note: "序號:" + sn, staff: staff };
+        const payload = { 
+            date: date, payMethod: method, consumerName: buyer + " - " + itemName, 
+            nonCashAmt: (method === "現金") ? "" : price, cashAmt: (method === "現金") ? price : "", 
+            note: "序號:" + sn, staff: staff 
+        };
 
-        this.innerText = "傳送中...";
+        this.innerText = "同步中...";
         fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
         .then(() => {
-            db.ref('Accounting_2026').push({ 日期: date, 付款方式: method, 現金收入: (method === "現金") ? price : 0, 非現金收入: (method !== "現金") ? price : 0, consumerName: buyer + " - " + itemName, note: "序號:" + sn });
+            db.ref('Accounting_2026').push({ 
+                日期: date, 付款方式: method, 
+                現金收入: (method === "現金") ? price : 0, 
+                非現金收入: (method !== "現金") ? price : 0, 
+                consumerName: buyer + " - " + itemName, note: "序號:" + sn 
+            });
             db.ref('inventory/' + sn.replace(/[\.\#\$\/\[\]]/g, "")).remove();
-            alert("結帳成功！資料已傳送至 Excel 流水帳。");
+            alert("結帳完成！");
             location.reload();
         });
     });
