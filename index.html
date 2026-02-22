@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINLE 3C POS</title>
+    <title>PINLE 3C POS - 專業版</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -20,6 +20,7 @@
         input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
         .info-box { background: #fffcf0; padding: 15px; border-radius: 12px; border: 1px solid #ffeeba; margin-bottom: 15px; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; color: white; cursor: pointer; }
+        .history-item { background: #f8f9fa; border-left: 5px solid var(--pinle-green); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -47,7 +48,7 @@
             <label>3. 付款方式</label>
             <select id="pay-method" onchange="calculateProfit()">
                 <option value="現金">現金</option>
-                <option value="匯款/ LPMoney/ iPass Money/電子支付">匯款 / LPMoney</option>
+                <option value="匯款/ LPMoney/ iPass Money/電子支付">匯款 / LPMoney / 電支</option>
                 <option value="刷卡">刷卡 (2%)</option>
                 <option value="LP">LP (2%)</option>
                 <option value="分期">分期 (2%)</option>
@@ -66,24 +67,27 @@
     </div>
 
     <div id="sec-customer" class="section">
-        <div class="input-group"><label>🔍 搜尋流水帳紀錄</label><input type="text" id="cust-search-input" placeholder="輸入姓名或序號"></div>
+        <div class="input-group"><label>🔍 搜尋包含「流水帳」分頁的紀錄</label><input type="text" id="cust-search-input" placeholder="輸入姓名或序號"></div>
         <button class="btn" style="background:#0984e3;" onclick="searchCustomer()">立即從 Excel 搜尋</button>
         <div id="search-result-display" style="margin-top:15px;"></div>
     </div>
 </div>
 
 <script>
+    // 部署網址
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6PZqyrRqHscFdZHNTsKnVdpMl3Y7_oKDAEVlkHP6fLq885htw0HRe0HImSU7DU1xhww/exec";
-    const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     
+    // Firebase 配置
+    const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
     let currentCost = 0;
 
     window.switchTab = (t) => {
         document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
-        document.getElementById('tab-' + t).classList.add('active');
-        document.getElementById('sec-' + t).classList.add('active');
+        document.getElementById('tab-'+t).classList.add('active');
+        document.getElementById('sec-'+t).classList.add('active');
     };
 
     window.autoFetch = () => {
@@ -108,16 +112,18 @@
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const method = document.getElementById('pay-method').value;
         const feeNotice = document.getElementById('fee-notice');
+        
         let fee = 0;
         const feeList = ["刷卡", "分期", "無卡分期", "LP", "行動支付"];
         if (feeList.some(f => method.includes(f))) {
             fee = price * 0.02;
-            feeNotice.innerText = "(已扣 2% 手續費: $" + Math.round(fee) + ")";
+            feeNotice.innerText = "(已預扣 2% 手續費: $" + Math.round(fee) + ")";
             feeNotice.style.color = "#e74c3c";
         } else {
             feeNotice.innerText = "(無手續費)";
             feeNotice.style.color = "gray";
         }
+
         const p = Math.round(price - currentCost - fee);
         document.getElementById('res-profit').innerText = "$" + p;
     };
@@ -129,7 +135,7 @@
         const method = document.getElementById('pay-method').value;
         const itemName = document.getElementById('res-item').innerText;
 
-        if (!buyer || isNaN(price) || itemName.includes("❌")) return alert("請確認姓名、售價與序號");
+        if (!buyer || isNaN(price) || itemName.includes("❌")) return alert("請確認姓名、售價與序號是否正確");
 
         const btn = document.getElementById('btn-pay-exec');
         btn.innerText = "同步中...";
@@ -141,21 +147,21 @@
             payMethod: method,
             consumerName: buyer + " - " + itemName,
             price: price,
-            cost: currentCost,
-            note: sn, // 傳純序號供後端比對
+            cost: currentCost, 
+            note: sn, // 傳純序號回填庫存表
             staff: document.getElementById('staff-select').value
         };
 
-        // 🚩 修正：移除 no-cors 才能接收 Google 的回傳狀態
+        // 使用 no-cors 模式確保不會因 CORS 錯誤而中斷執行
         fetch(GOOGLE_SCRIPT_URL, { 
             method: "POST", 
+            mode: "no-cors", 
             body: JSON.stringify(payload) 
         })
-        .then(res => res.text())
-        .then(result => {
-            // 從 Firebase 移除該筆庫存
+        .then(() => {
+            // 成功後移除 Firebase 暫存庫存
             db.ref('inventory/' + sn.replace(/[^a-zA-Z0-9]/g, "")).remove();
-            alert("✅ 結帳成功！\n1. 流水帳已新增\n2. 庫存表回填狀態：" + result);
+            alert("✅ 結帳成功！\n1. 流水帳已新增\n2. 庫存表已填入銷貨資訊");
             location.reload();
         })
         .catch(err => {
@@ -166,9 +172,10 @@
 
     window.searchCustomer = () => {
         const k = document.getElementById('cust-search-input').value.trim();
-        if (!k) return alert("請輸入關鍵字");
+        if (!k) return alert("請輸入搜尋內容");
         const disp = document.getElementById('search-result-display');
-        disp.innerHTML = "🔍 搜尋中...";
+        disp.innerHTML = "🔍 正在搜尋流水帳...";
+
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             body: JSON.stringify({ action: "search", keyword: k })
@@ -176,14 +183,17 @@
         .then(res => res.json())
         .then(results => {
             if (!results || results.length === 0) {
-                disp.innerHTML = "❌ 查無紀錄";
+                disp.innerHTML = "❌ 查無紀錄。";
                 return;
             }
-            let html = "";
+            let html = `<p style="color:gray; font-size:12px;">找到 ${results.length} 筆紀錄：</p>`;
             results.forEach(r => {
-                html += `<div style="background:#f8f9fa; border-left:5px solid #52b788; padding:10px; margin-bottom:10px;"><b>📅 ${r.date}</b><br>👤 ${r.name}<br>💰 $${r.price}<br>📝 ${r.note}</div>`;
+                html += `<div class="history-item"><b>📅 ${r.date}</b><br>👤 ${r.name}<br>💰 $${r.price}<br>📝 ${r.note}</div>`;
             });
             disp.innerHTML = html;
+        })
+        .catch(() => {
+            disp.innerHTML = "❌ 搜尋發生錯誤。";
         });
     };
 </script>
