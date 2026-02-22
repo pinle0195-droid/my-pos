@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINLE 3C POS</title>
+    <title>PINLE 3C POS - 專業版</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -18,8 +18,9 @@
         .input-group { margin-bottom: 12px; }
         label { font-size: 14px; font-weight: bold; display: block; margin-bottom: 5px; }
         input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+        .info-box { background: #fffcf0; padding: 15px; border-radius: 12px; border: 1px solid #ffeeba; margin-bottom: 15px; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; color: white; cursor: pointer; }
-        .history-item { background: #f8f9fa; border-left: 5px solid var(--pinle-green); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; line-height: 1.6; }
+        .history-item { background: #f8f9fa; border-left: 5px solid var(--pinle-green); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -27,67 +28,65 @@
 <div class="card">
     <div style="text-align:center; color:var(--pinle-green); font-size:22px; font-weight:bold; margin-bottom:15px;">PINLE 3C POS</div>
     <div class="tabs">
-        <div class="tab active" onclick="switchTab('sale')">🛒 銷售結帳</div>
-        <div class="tab" onclick="switchTab('customer')">🔍 客戶查詢</div>
+        <div class="tab active" id="tab-sale" onclick="switchTab('sale')">🛒 銷售結帳</div>
+        <div class="tab" id="tab-customer" onclick="switchTab('customer')">🔍 客戶查詢</div>
     </div>
 
     <div id="sec-sale" class="section active">
         <div class="input-group">
-            <label>1. 掃描序號 (帶出成本)</label>
+            <label>1. 掃描序號</label>
             <input type="text" id="sale-scan" placeholder="掃描或輸入序號" oninput="autoFetch()">
         </div>
-        <div style="background:#fffcf0; padding:12px; border-radius:12px; margin-bottom:12px; border:1px solid #ffeeba;">
+        <div class="info-box">
             <div>品名：<b id="res-item">---</b></div>
             <div>成本：<b id="res-cost">$0</b></div>
             <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預估毛利 (N欄)：<b id="res-profit">$0</b></div>
+            <div id="fee-notice" style="font-size:12px; color:gray; margin-top:3px;">(手續費計算中...)</div>
         </div>
         <div class="input-group"><label>2. 購買人姓名</label><input type="text" id="sale-buyer" placeholder="輸入姓名"></div>
         <div class="input-group">
-            <label>3. 付款方式 (決定 G欄或 F欄)</label>
+            <label>3. 付款方式</label>
             <select id="pay-method" onchange="calculateProfit()">
                 <option value="現金">現金</option>
-                <option value="刷卡">刷卡</option>
-                <option value="LP">LP</option>
-                <option value="分期">分期</option>
-                <option value="無卡分期">無卡分期</option>
-                <option value="匯款/ LPMoney/ iPass Money/電子支付">匯款/ LPMoney/ iPass Money/電子支付</option>
+                <option value="匯款/ LPMoney/ iPass Money/電子支付">匯款 / iPass Money / LPMoney</option>
+                <option value="刷卡">刷卡 (2%手續費)</option>
+                <option value="LP">LP (2%手續費)</option>
+                <option value="分期">分期 (2%手續費)</option>
+                <option value="無卡分期">無卡分期 (2%手續費)</option>
+                <option value="行動支付">行動支付 (2%手續費)</option>
             </select>
         </div>
-        <div class="input-group"><label>4. 成交售價</label><input type="number" id="sale-price" placeholder="輸入成交價" oninput="calculateProfit()"></div>
+        <div class="input-group"><label>4. 成交售價</label><input type="number" id="sale-price" placeholder="輸入售價" oninput="calculateProfit()"></div>
         <div class="input-group">
-            <label>5. 承辦人 (L欄)</label>
+            <label>5. 承辦人</label>
             <select id="staff-select">
-                <option value="坤霖">坤霖</option>
-                <option value="思璇">思璇</option>
-                <option value="䕒尹">䕒尹</option>
+                <option value="坤霖">坤霖</option><option value="思璇">思璇</option><option value="䕒尹">䕒尹</option>
             </select>
         </div>
         <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
     </div>
 
     <div id="sec-customer" class="section">
-        <div class="input-group">
-            <label>🔍 搜尋跨年度流水帳紀錄</label>
-            <input type="text" id="cust-search-input" placeholder="請輸入姓名或序號">
-        </div>
+        <div class="input-group"><label>🔍 搜尋包含「流水帳」分頁的紀錄</label><input type="text" id="cust-search-input" placeholder="輸入姓名或序號"></div>
         <button class="btn" style="background:#0984e3;" onclick="searchCustomer()">立即從 Excel 搜尋</button>
         <div id="search-result-display" style="margin-top:15px;"></div>
     </div>
 </div>
 
 <script>
-    // 🔴 網址已更新
+    // ⚠️ 請務必確認此網址為您剛才部署後獲得的最新 Web App URL
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6PZqyrRqHscFdZHNTsKnVdpMl3Y7_oKDAEVlkHP6fLq885htw0HRe0HImSU7DU1xhww/exec";
-    const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     
+    const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
     let currentCost = 0;
 
     window.switchTab = (t) => {
         document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
-        document.getElementById('sec-sale').classList.toggle('active', t==='sale');
-        document.getElementById('sec-customer').classList.toggle('active', t==='customer');
+        document.getElementById('tab-'+t).classList.add('active');
+        document.getElementById('sec-'+t).classList.add('active');
     };
 
     window.autoFetch = () => {
@@ -102,15 +101,30 @@
                 calculateProfit();
             } else {
                 document.getElementById('res-item').innerText = "❌ 無此庫存";
-                document.getElementById('res-cost').innerText = "$0";
                 currentCost = 0;
+                calculateProfit();
             }
         });
     };
 
     window.calculateProfit = () => {
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
-        const p = Math.round(price - currentCost);
+        const method = document.getElementById('pay-method').value;
+        const feeNotice = document.getElementById('fee-notice');
+        
+        let fee = 0;
+        // 依照後端邏輯判斷是否扣 2%
+        const feeList = ["刷卡", "分期", "無卡分期", "LP", "行動支付"];
+        if (feeList.some(f => method.includes(f))) {
+            fee = price * 0.02;
+            feeNotice.innerText = "(已預扣 2% 手續費: $" + Math.round(fee) + ")";
+            feeNotice.style.color = "#e74c3c";
+        } else {
+            feeNotice.innerText = "(無手續費)";
+            feeNotice.style.color = "gray";
+        }
+
+        const p = Math.round(price - currentCost - fee);
         document.getElementById('res-profit').innerText = "$" + p;
         return p;
     };
@@ -122,7 +136,7 @@
         const method = document.getElementById('pay-method').value;
         const itemName = document.getElementById('res-item').innerText;
 
-        if (!buyer || isNaN(price) || itemName.includes("❌")) return alert("請填寫姓名、售價與正確序號");
+        if (!buyer || isNaN(price) || itemName.includes("❌")) return alert("請確認姓名、售價與序號是否正確");
 
         const btn = document.getElementById('btn-pay-exec');
         btn.innerText = "同步中...";
@@ -132,29 +146,29 @@
             action: "checkout",
             date: new Date().toLocaleDateString('zh-TW'),
             payMethod: method,
-            consumerName: buyer + " - " + itemName, // 同步在 E 欄
-            nonCashAmt: (method === "現金") ? "" : price, // 同步在 F 欄
-            cashAmt: (method === "現金") ? price : "", // 同步在 G 欄
+            consumerName: buyer + " - " + itemName,
+            price: price,
+            cost: currentCost, // 傳送成本給後端計算毛利
             note: "序號:" + sn,
-            staff: document.getElementById('staff-select').value,
-            profit: window.calculateProfit() // 同步在 N 欄
+            staff: document.getElementById('staff-select').value
         };
 
         fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
         .then(() => {
+            // 從 Firebase 移除庫存
             db.ref('inventory/' + sn.replace(/[^a-zA-Z0-9]/g, "")).remove();
-            alert("✅ 結帳成功！資料已同步至 Excel。");
+            alert("✅ 結帳成功！資料已同步至 Excel 2026。");
             location.reload();
         })
         .catch(err => {
-            alert("連線錯誤：" + err.message);
+            alert("同步失敗：" + err.message);
             btn.disabled = false;
         });
     };
 
     window.searchCustomer = () => {
         const k = document.getElementById('cust-search-input').value.trim();
-        if (!k) return alert("請輸入關鍵字");
+        if (!k) return alert("請輸入搜尋內容");
         const disp = document.getElementById('search-result-display');
         disp.innerHTML = "🔍 正在翻閱所有流水帳...";
 
@@ -173,9 +187,6 @@
                 html += `<div class="history-item"><b>📅 ${r.date} (${r.year})</b><br>👤 ${r.name}<br>💰 $${r.price}<br>📝 ${r.note}</div>`;
             });
             disp.innerHTML = html;
-        })
-        .catch(err => {
-            disp.innerHTML = "❌ 連線失敗。請確認 Excel 部署權限為『所有人』。";
         });
     };
 </script>
