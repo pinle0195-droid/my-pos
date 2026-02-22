@@ -1,35 +1,29 @@
-window.executeCheckout = () => {
-        const sn = document.getElementById('sale-scan').value.trim();
-        const buyer = document.getElementById('sale-buyer').value.trim();
-        const price = parseFloat(document.getElementById('sale-price').value);
-        const method = document.getElementById('pay-method').value;
-        const itemName = document.getElementById('res-item').innerText;
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PINLE 3C POS - 專業版</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        :root { --pinle-green: #52b788; }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 10px; }
+        .card { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); border-top: 8px solid var(--pinle-green); }
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 12px 5px; text-align: center; background: #eee; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: bold; }
+        .tab.active { background: var(--pinle-green); color: white; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .input-group { margin-bottom: 12px; }
+        label { font-size: 14px; font-weight: bold; display: block; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+        .info-box { background: #fffcf0; padding: 15px; border-radius: 12px; border: 1px solid #ffeeba; margin-bottom: 15px; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; color: white; cursor: pointer; }
+        .history-item { background: #f8f9fa; border-left: 5px solid var(--pinle-green); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
 
-        if (!buyer || isNaN(price) || itemName.includes("❌")) return alert("請確認姓名、售價與序號是否正確");
-
-        const btn = document.getElementById('btn-pay-exec');
-        btn.innerText = "同步中...";
-        btn.disabled = true;
-
-        const payload = {
-            action: "checkout",
-            date: new Date().toLocaleDateString('zh-TW'),
-            payMethod: method,
-            consumerName: buyer + " - " + itemName,
-            price: price,
-            cost: currentCost, 
-            note: sn, // 👈 修正：傳送純序號，這樣 Excel 才搜得到並回填 F/H 欄
-            staff: document.getElementById('staff-select').value
-        };
-
-        fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
-        .then(() => {
-            // 💡 備註：不再執行 Firebase 移除，保留庫存以便在庫存表看到銷貨資訊
-            alert("✅ 結帳成功！\n1. 流水帳已新增\n2. 庫存表已回填銷貨資訊");
-            location.reload();
-        })
-        .catch(err => {
-            alert("同步失敗：" + err.message);
-            btn.disabled = false;
-        });
-    };
+<div class="card">
+    <div style
