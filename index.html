@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINLE 3C POS - 跨年查詢版</title>
+    <title>PINLE 3C POS - 專業版</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -20,7 +20,7 @@
         input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
         .info-box { background: #fffcf0; padding: 15px; border-radius: 12px; border: 1px solid #ffeeba; margin-bottom: 15px; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; color: white; cursor: pointer; }
-        .history-item { background: #f8f9fa; border-left: 5px solid var(--pinle-green); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; line-height: 1.5; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .history-item { background: #f8f9fa; border-left: 5px solid var(--pinle-green); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -35,50 +35,51 @@
 
     <div id="sec-sale" class="section active">
         <div class="input-group">
-            <label>1. 掃描序號 (IMEI/SN)</label>
-            <input type="text" id="sale-scan" placeholder="自動抓取庫存" oninput="autoFetch()">
+            <label>1. 掃描序號 (帶出成本)</label>
+            <input type="text" id="sale-scan" placeholder="掃描或輸入序號" oninput="autoFetch()">
         </div>
         <div class="info-box">
             <div>品名：<b id="res-item">---</b></div>
             <div>成本：<b id="res-cost">$0</b></div>
-            <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預估毛利：<b id="res-profit">$0</b></div>
+            <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預估毛利 (N欄)：<b id="res-profit">$0</b></div>
         </div>
-        <div class="input-group"><label>2. 購買人姓名</label><input type="text" id="sale-buyer" placeholder="輸入姓名 (含符號可)"></div>
+        <div class="input-group"><label>2. 購買人姓名</label><input type="text" id="sale-buyer" placeholder="輸入購買人姓名"></div>
         <div class="input-group">
-            <label>3. 付款方式</label>
+            <label>3. 付款方式 (決定 G欄或 F欄)</label>
             <select id="pay-method" onchange="calculateProfit()">
-                <option value="現金">現金</option><option value="刷卡">刷卡</option><option value="LP">LP</option>
-                <option value="分期">分期</option><option value="行動支付">行動支付</option>
+                <option value="現金">現金</option>
+                <option value="刷卡">刷卡</option>
+                <option value="LP">LP</option>
+                <option value="分期">分期</option>
                 <option value="匯款/ LPMoney/ iPass Money/電子支付">匯款/ LPMoney/ iPass Money/電子支付</option>
-                <option value="無卡分期">無卡分期</option><option value="電商匯款">電商匯款</option><option value="帳期(未付)">帳期(未付)</option>
             </select>
         </div>
-        <div class="input-group"><label>4. 成交售價</label><input type="number" id="sale-price" placeholder="輸入成交價" oninput="calculateProfit()"></div>
+        <div class="input-group"><label>4. 成交售價</label><input type="number" id="sale-price" placeholder="輸入售價" oninput="calculateProfit()"></div>
         <div class="input-group">
-            <label>5. 承辦人</label>
+            <label>5. 承辦人 (L欄)</label>
             <select id="staff-select">
                 <option value="坤霖">坤霖</option><option value="思璇">思璇</option><option value="䕒尹">䕒尹</option>
             </select>
         </div>
-        <button class="btn" style="background:var(--pinle-green);" onclick="executeCheckout()" id="btn-pay-exec">確認結帳並同步 Excel</button>
+        <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
     </div>
 
     <div id="sec-customer" class="section">
         <div class="input-group">
-            <label>🔍 搜尋 2018-2026 姓名或序號</label>
-            <input type="text" id="cust-search-input" placeholder="例如：黃大儒 或 李憶慧">
+            <label>🔍 搜尋包含「流水帳」分頁的紀錄</label>
+            <input type="text" id="cust-search-input" placeholder="輸入姓名或序號">
         </div>
-        <button class="btn" style="background:#0984e3;" onclick="searchCustomer()">立即從 Excel 搜尋</button>
+        <button class="btn" style="background:#0984e3;" onclick="searchCustomer()">從所有流水帳搜尋</button>
         <div id="search-result-display" style="margin-top:15px;"></div>
     </div>
 
     <div id="sec-daily" class="section">
-        <button class="btn" style="background:#2d3436;" onclick="alert('請在結帳頁完成後檢查 Excel')">生成今日日結</button>
+        <button class="btn" style="background:#2d3436;" onclick="alert('請檢查 Excel 流水帳 2026')">查看日結</button>
     </div>
 </div>
 
 <script>
-    // --- 核心連線設定 ---
+    // 🔴 請確保此網址為您最新部署的網址
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0LUrBXzS_FK0jzszc_C-LnTQBn1mrMCw2gpq9G6dKPOiVYQQWf9uBWCh972vn-bEuSQ/exec";
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     
@@ -87,14 +88,12 @@
 
     let currentCost = 0;
 
-    // 分頁切換
     window.switchTab = (t) => {
         document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
         document.getElementById('tab-'+t).classList.add('active');
         document.getElementById('sec-'+t).classList.add('active');
     };
 
-    // 自動帶出庫存
     window.autoFetch = () => {
         const sn = document.getElementById('sale-scan').value.replace(/[^a-zA-Z0-9]/g, "").trim();
         if (sn.length < 3) return;
@@ -114,16 +113,57 @@
 
     window.calculateProfit = () => {
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
-        document.getElementById('res-profit').innerText = "$" + Math.round(price - currentCost);
+        const profit = Math.round(price - currentCost);
+        document.getElementById('res-profit').innerText = "$" + profit;
+        return profit;
     };
 
-    // --- 客戶查詢除錯版 ---
+    // 結帳邏輯：精確對準 E, F, G, L, N 欄位
+    window.executeCheckout = () => {
+        const sn = document.getElementById('sale-scan').value.trim();
+        const buyer = document.getElementById('sale-buyer').value.trim();
+        const price = parseFloat(document.getElementById('sale-price').value);
+        const method = document.getElementById('pay-method').value;
+        const staff = document.getElementById('staff-select').value;
+        const itemName = document.getElementById('res-item').innerText;
+        const profit = window.calculateProfit();
+
+        if (!buyer || isNaN(price) || itemName.includes("❌")) return alert("請確認姓名、售價與序號");
+
+        const btn = document.getElementById('btn-pay-exec');
+        btn.innerText = "同步中...";
+        btn.disabled = true;
+
+        const payload = { 
+            action: "checkout",
+            date: new Date().toLocaleDateString('zh-TW'), 
+            payMethod: method, 
+            consumerName: buyer + " - " + itemName, // 同步在 E 欄
+            nonCashAmt: (method === "現金") ? "" : price, // 同步在 F 欄
+            cashAmt: (method === "現金") ? price : "", // 同備在 G 欄
+            note: "序號:" + sn, 
+            staff: staff, // 同步在 L 欄
+            profit: profit // 同步在 N 欄
+        };
+
+        fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
+        .then(() => {
+            db.ref('inventory/' + sn.replace(/[^a-zA-Z0-9]/g, "")).remove();
+            alert("✅ 結帳成功！資料已同步至 Excel。");
+            location.reload();
+        })
+        .catch(err => {
+            alert("錯誤：" + err.message);
+            btn.disabled = false;
+        });
+    };
+
+    // 搜尋邏輯：搜尋所有「流水帳」分頁
     window.searchCustomer = () => {
         const k = document.getElementById('cust-search-input').value.trim();
-        if (!k) return alert("請輸入搜尋文字");
-        
+        if (!k) return alert("請輸入搜尋內容");
         const disp = document.getElementById('search-result-display');
-        disp.innerHTML = "🔍 正在搜尋 2018-2026 年流水帳...";
+        disp.innerHTML = "🔍 搜尋所有流水帳中...";
 
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
@@ -132,66 +172,15 @@
         .then(res => res.json())
         .then(results => {
             if (!results || results.length === 0) {
-                disp.innerHTML = "❌ 在 Excel 中查無此紀錄。";
+                disp.innerHTML = "❌ 查無紀錄。";
                 return;
             }
-            let html = `<p style='color:gray; font-size:12px;'>共找到 ${results.length} 筆歷史紀錄：</p>`;
+            let html = "";
             results.forEach(r => {
-                let d = r.date;
-                // 日期格式化：將 Excel 傳回的時間格式轉為 YYYY/MM/DD
-                if (typeof d === "string" && d.includes("T")) d = d.split("T")[0];
-                else d = new Date(d).toLocaleDateString('zh-TW');
-
-                html += `
-                <div class="history-item">
-                    <b>📅 ${d} (${r.year})</b><br>
-                    👤 客戶：${r.name}<br>
-                    💰 金額：$${r.price}<br>
-                    📝 備註：${r.note || '無'}
-                </div>`;
+                let d = r.date ? new Date(r.date).toLocaleDateString('zh-TW') : "未知";
+                html += `<div class="history-item"><b>📅 ${d} (${r.year})</b><br>👤 ${r.name}<br>💰 $${r.price}<br>📝 ${r.note}</div>`;
             });
             disp.innerHTML = html;
-        })
-        .catch(err => {
-            alert("❌ 搜尋失敗：" + err.message);
-            disp.innerHTML = "❌ 無法從 Excel 取得資料，請檢查部署權限。";
-        });
-    };
-
-    // 結帳執行
-    window.executeCheckout = () => {
-        const btn = document.getElementById('btn-pay-exec');
-        const sn = document.getElementById('sale-scan').value.trim();
-        const buyer = document.getElementById('sale-buyer').value.trim();
-        const price = parseFloat(document.getElementById('sale-price').value);
-        const method = document.getElementById('pay-method').value;
-        const staff = document.getElementById('staff-select').value;
-        const itemName = document.getElementById('res-item').innerText;
-
-        if (!buyer || isNaN(price) || itemName.includes("❌")) return alert("請確認姓名、售價與庫存正確");
-
-        btn.innerText = "資料同步中...";
-        btn.disabled = true;
-
-        const date = new Date().toLocaleDateString('zh-TW');
-        const payload = { 
-            action: "checkout",
-            date: date, payMethod: method, consumerName: buyer + " - " + itemName, 
-            nonCashAmt: (method === "現金") ? "" : price, cashAmt: (method === "現金") ? price : "", 
-            note: "序號:" + sn, staff: staff 
-        };
-
-        fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
-        .then(() => {
-            const cleanSn = sn.replace(/[^a-zA-Z0-9]/g, "");
-            db.ref('inventory/' + cleanSn).remove();
-            alert("✅ 結帳成功！");
-            location.reload();
-        })
-        .catch(err => {
-            alert("錯誤：" + err.message);
-            btn.disabled = false;
-            btn.innerText = "確認結帳並同步 Excel";
         });
     };
 </script>
