@@ -62,9 +62,13 @@
             <select id="staff-select">
                 <option value="坤霖">坤霖</option><option value="思璇">思璇</option><option value="䕒尹">䕒尹</option>
             </select>
-        </div>
-        <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
     </div>
+    <div class="input-group">
+        <label>6. 備註 (選填)</label>
+        <input type="text" id="sale-note-extra" placeholder="例如：贈送保護貼、舊機回收...">
+    </div>
+    <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
+</div>
 
     <div id="sec-customer" class="section">
         <div class="input-group"><label>🔍 搜尋包含「流水帳」分頁的紀錄</label><input type="text" id="cust-search-input" placeholder="輸入姓名或序號"></div>
