@@ -7,9 +7,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        :root { --pinle-green: #2ecc71; --pinle-dark: #27ae60; }
+        :root { --pinle-green: #2ecc71; --pinle-dark: #27ae60; --pinle-blue: #3498db; }
         body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 480px; }
         h2 { text-align: center; color: #333; margin-bottom: 25px; }
         .input-group { margin-bottom: 18px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; color: #555; }
@@ -19,6 +19,10 @@
         .profit { font-weight: bold; color: #e67e22; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
         .btn:disabled { background: #ccc !important; cursor: not-allowed; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 30px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th { background: #f8f9fa; border-bottom: 2px solid #ddd; padding: 8px; text-align: left; }
+        td { border-bottom: 1px solid #eee; padding: 8px; }
     </style>
 </head>
 <body>
@@ -27,7 +31,7 @@
     <h2>品樂通訊 POS 系統</h2>
 
     <div class="input-group">
-        <label>1. 掃描產品序號 (E 欄)</label>
+        <label>1. 掃描產品序號</label>
         <input type="text" id="sale-scan" placeholder="請掃描或輸入序號" oninput="autoFetch()">
     </div>
 
@@ -71,24 +75,49 @@
     </div>
 
     <div class="input-group">
-        <label>6. 備註 (選填)</label>
+        <label>6. 備註 (只會同步到流水帳 H 欄)</label>
         <input type="text" id="sale-note-extra" placeholder="例如：贈送保護貼、舊機回收...">
     </div>
 
     <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
+
+    <hr>
+
+    <div class="input-group">
+        <label>🔍 跨年度客戶紀錄查詢</label>
+        <input type="text" id="query-name" placeholder="輸入客戶姓名 (必填)">
+        
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <div style="flex: 1;">
+                <label style="font-size: 12px; color: #888;">開始日期 (選填)</label>
+                <input type="date" id="query-start-date">
+            </div>
+            <div style="flex: 1;">
+                <label style="font-size: 12px; color: #888;">結束日期 (選填)</label>
+                <input type="date" id="query-end-date">
+            </div>
+        </div>
+        
+        <button onclick="searchCustomer()" style="margin-top: 12px; width: 100%; padding: 12px; background: var(--pinle-blue); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+            搜尋所有年度紀錄
+        </button>
+    </div>
+
+    <div id="query-results" style="margin-top: 15px; font-size: 14px; max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 5px;">
+        <p style="text-align: center; color: #999;">尚未進行搜尋</p>
+    </div>
 </div>
 
 <script>
-    // --- Firebase 設定 ---
+    // --- 1. Firebase & API 設定 ---
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
-    let currentCost = 0;
-    // 🚩 已更新為您最新的網址
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6PZqyrRqHscFdZHNTsKnVdpMl3Y7_oKDAEVlkHP6fLq885htw0HRe0HImSU7DU1xhww/exec";
 
-    // --- 自動偵測邏輯 ---
+    let currentCost = 0;
+
+    // --- 2. 自動偵測序號 ---
     window.autoFetch = () => {
         const snInput = document.getElementById('sale-scan');
         const sn = snInput.value.replace(/[^a-zA-Z0-9]/g, "").trim();
@@ -102,15 +131,11 @@
 
             if (snap.exists()) {
                 const d = snap.val();
-
-                // 🚩 核心智慧判斷：如果最新一筆庫存 H 欄有人名，則鎖定。
                 if (d.soldTo && d.soldTo.trim() !== "") {
-                    resItem.innerHTML = `<span style="color:red; font-weight:bold;">⚠️ 此序號已售出 (對象: ${d.soldTo})</span>`;
-                    resCost.innerText = "$0";
+                    resItem.innerHTML = `<span style="color:red;">⚠️ 已售出 (對象: ${d.soldTo})</span>`;
                     currentCost = 0;
                     btnPay.disabled = true;
-                    btnPay.style.background = "#ccc";
-                    feeNotice.innerText = "❌ 最新進貨紀錄顯示已銷貨";
+                    feeNotice.innerText = "❌ 此序號庫存狀態為已銷貨";
                 } else {
                     resItem.innerText = d.name;
                     resItem.style.color = "black";
@@ -118,19 +143,18 @@
                     currentCost = parseFloat(d.cost);
                     btnPay.disabled = false;
                     btnPay.style.background = "var(--pinle-green)";
-                    feeNotice.innerText = "(手續費計算中...)";
                 }
             } else {
                 resItem.innerText = "❌ 無此庫存";
                 resItem.style.color = "red";
                 currentCost = 0;
                 btnPay.disabled = true;
-                btnPay.style.background = "#ccc";
             }
             calculateProfit();
         });
     };
 
+    // --- 3. 計算利潤 ---
     window.calculateProfit = () => {
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const method = document.getElementById('pay-method').value;
@@ -139,15 +163,15 @@
         let fee = 0;
         if (feeList.some(item => method.includes(item))) {
             fee = price * 0.02;
-            document.getElementById('fee-notice').innerText = "已扣除 2% 手續費: $" + Math.round(fee);
+            document.getElementById('fee-notice').innerText = "已扣 2% 手續費: $" + Math.round(fee);
         } else {
-            document.getElementById('fee-notice').innerText = "此支付方式無手續費";
+            document.getElementById('fee-notice').innerText = "此方式免手續費";
         }
-
         const profit = Math.round(price - currentCost - fee);
         document.getElementById('res-profit').innerText = "$" + profit;
     };
 
+    // --- 4. 結帳執行 ---
     window.executeCheckout = () => {
         const btn = document.getElementById('btn-pay-exec');
         const buyer = document.getElementById('sale-buyer').value.trim();
@@ -164,22 +188,19 @@
         btn.disabled = true;
         btn.innerText = "同步中...";
 
-        // 🚩 這裡會傳送 extraNote 給 Google Script，回傳至 H 欄備註
-        const payload = {
-            action: "checkout",
-            date: new Date().toLocaleDateString('zh-TW'),
-            payMethod: document.getElementById('pay-method').value,
-            consumerName: buyer + " - " + itemName,
-            price: price,
-            cost: currentCost,
-            sn: sn,
-            extraNote: extraNote, 
-            staff: document.getElementById('staff-select').value
-        };
-
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                action: "checkout",
+                date: new Date().toLocaleDateString('zh-TW'),
+                payMethod: document.getElementById('pay-method').value,
+                consumerName: buyer + " - " + itemName,
+                price: price,
+                cost: currentCost,
+                sn: sn,
+                extraNote: extraNote, 
+                staff: document.getElementById('staff-select').value
+            })
         })
         .then(res => res.text())
         .then(text => {
@@ -189,6 +210,48 @@
         .catch(err => {
             alert("❌ 失敗：" + err);
             btn.disabled = false;
+        });
+    };
+
+    // --- 5. 跨年份客戶查詢 ---
+    window.searchCustomer = () => {
+        const name = document.getElementById('query-name').value.trim();
+        const startDate = document.getElementById('query-start-date').value;
+        const endDate = document.getElementById('query-end-date').value;
+        const resultDiv = document.getElementById('query-results');
+
+        if (!name) { alert("請輸入客戶姓名"); return; }
+        resultDiv.innerHTML = '<p style="text-align: center;">🔎 正在搜尋歷年帳目...</p>';
+
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                action: "queryCustomer",
+                name: name,
+                startDate: startDate,
+                endDate: endDate
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.length === 0) {
+                resultDiv.innerHTML = '<p style="text-align: center; color: red;">❌ 找不到紀錄</p>';
+                return;
+            }
+            let html = '<table><tr><th>日期/年度</th><th>客戶</th><th>備註</th><th>金額</th></tr>';
+            data.forEach(r => {
+                html += `<tr>
+                    <td>${r.date}<br><small style="color:var(--pinle-green)">(${r.year}年)</small></td>
+                    <td><b>${r.name}</b></td>
+                    <td>${r.note}</td>
+                    <td style="color:#e67e22; font-weight:bold;">$${Number(r.price).toLocaleString()}</td>
+                </tr>`;
+            });
+            html += '</table>';
+            resultDiv.innerHTML = html;
+        })
+        .catch(err => {
+            resultDiv.innerHTML = '<p style="text-align: center; color: red;">❌ 搜尋出錯</p>';
         });
     };
 </script>
