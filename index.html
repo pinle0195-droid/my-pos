@@ -52,21 +52,21 @@
         <label>4. 付款方式</label>
         <select id="pay-method" onchange="calculateProfit()">
             <option value="現金">現金</option>
+            <option value="匯款 / LPMoney / iPass Money/電子支付">匯款 / LPMoney / 電支</option>
             <option value="刷卡">刷卡 (2%)</option>
+            <option value="LP">LP (2%)</option>
             <option value="分期">分期 (2%)</option>
             <option value="無卡分期">無卡分期 (2%)</option>
-            <option value="LP">LP (2%)</option>
             <option value="行動支付">行動支付 (2%)</option>
-            <option value="匯款">匯款</option>
         </select>
     </div>
 
     <div class="input-group">
         <label>5. 承辦人</label>
         <select id="staff-select">
-            <option value="小名">小名</option>
-            <option value="阿強">阿強</option>
-            <option value="漂亮小姐姐">漂亮小姐姐</option>
+            <option value="坤霖">坤霖</option>
+            <option value="思璇">思璇</option>
+            <option value="嘉尹">嘉尹</option>
         </select>
     </div>
 
@@ -84,12 +84,11 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // --- 全域變數 ---
     let currentCost = 0;
-    // 🚩 已填入您提供的最新網址
+    // 🚩 已更新為您最新的網址
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6PZqyrRqHscFdZHNTsKnVdpMl3Y7_oKDAEVlkHP6fLq885htw0HRe0HImSU7DU1xhww/exec";
 
-    // --- 自動抓取庫存資料與售出偵測 ---
+    // --- 自動偵測邏輯 ---
     window.autoFetch = () => {
         const snInput = document.getElementById('sale-scan');
         const sn = snInput.value.replace(/[^a-zA-Z0-9]/g, "").trim();
@@ -104,14 +103,14 @@
             if (snap.exists()) {
                 const d = snap.val();
 
-                // 🚩 智慧售出偵測
-                if (d.soldTo && d.soldTo.toString().trim() !== "") {
-                    resItem.innerHTML = `<span style="color:red; font-weight:bold;">⚠️ 此機已售出 (對象: ${d.soldTo})</span>`;
+                // 🚩 核心智慧判斷：如果最新一筆庫存 H 欄有人名，則鎖定。
+                if (d.soldTo && d.soldTo.trim() !== "") {
+                    resItem.innerHTML = `<span style="color:red; font-weight:bold;">⚠️ 此序號已售出 (對象: ${d.soldTo})</span>`;
                     resCost.innerText = "$0";
                     currentCost = 0;
                     btnPay.disabled = true;
                     btnPay.style.background = "#ccc";
-                    feeNotice.innerText = "❌ 此序號目前標記為已售完";
+                    feeNotice.innerText = "❌ 最新進貨紀錄顯示已銷貨";
                 } else {
                     resItem.innerText = d.name;
                     resItem.style.color = "black";
@@ -124,7 +123,6 @@
             } else {
                 resItem.innerText = "❌ 無此庫存";
                 resItem.style.color = "red";
-                resCost.innerText = "$0";
                 currentCost = 0;
                 btnPay.disabled = true;
                 btnPay.style.background = "#ccc";
@@ -133,7 +131,6 @@
         });
     };
 
-    // --- 計算利潤 ---
     window.calculateProfit = () => {
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const method = document.getElementById('pay-method').value;
@@ -151,7 +148,6 @@
         document.getElementById('res-profit').innerText = "$" + profit;
     };
 
-    // --- 執行結帳同步 ---
     window.executeCheckout = () => {
         const btn = document.getElementById('btn-pay-exec');
         const buyer = document.getElementById('sale-buyer').value.trim();
@@ -161,13 +157,14 @@
         const extraNote = document.getElementById('sale-note-extra').value.trim();
 
         if (!buyer || !price || currentCost === 0) {
-            alert("請填寫完整資訊 (姓名、售價、且必須有正確庫存)");
+            alert("請填寫完整資訊");
             return;
         }
 
         btn.disabled = true;
-        btn.innerText = "同步中，請稍候...";
+        btn.innerText = "同步中...";
 
+        // 🚩 這裡會傳送 extraNote 給 Google Script，回傳至 H 欄備註
         const payload = {
             action: "checkout",
             date: new Date().toLocaleDateString('zh-TW'),
@@ -176,7 +173,7 @@
             price: price,
             cost: currentCost,
             sn: sn,
-            extraNote: extraNote,
+            extraNote: extraNote, 
             staff: document.getElementById('staff-select').value
         };
 
@@ -187,15 +184,13 @@
         .then(res => res.text())
         .then(text => {
             alert("✅ " + text);
-            location.reload(); // 成功後刷新
+            location.reload();
         })
         .catch(err => {
-            alert("❌ 同步失敗：" + err);
+            alert("❌ 失敗：" + err);
             btn.disabled = false;
-            btn.innerText = "重試結帳並同步";
         });
     };
 </script>
-
 </body>
 </html>
