@@ -26,4 +26,169 @@
 <body>
 
 <div class="card">
-    <div style
+    <div style="text-align:center; color:var(--pinle-green); font-size:22px; font-weight:bold; margin-bottom:15px;">PINLE 3C POS</div>
+    <div class="tabs">
+        <div class="tab active" id="tab-sale" onclick="switchTab('sale')">🛒 銷售結帳</div>
+        <div class="tab" id="tab-customer" onclick="switchTab('customer')">🔍 客戶查詢</div>
+    </div>
+
+    <div id="sec-sale" class="section active">
+        <div class="input-group">
+            <label>1. 掃描序號</label>
+            <input type="text" id="sale-scan" placeholder="掃描或輸入序號" oninput="autoFetch()">
+        </div>
+        <div class="info-box">
+            <div>品名：<b id="res-item">---</b></div>
+            <div>成本：<b id="res-cost">$0</b></div>
+            <div style="color:red; margin-top:5px; border-top:1px dashed #ccc;">預估毛利 (N欄)：<b id="res-profit">$0</b></div>
+            <div id="fee-notice" style="font-size:12px; color:gray; margin-top:3px;">(手續費計算中...)</div>
+        </div>
+        <div class="input-group"><label>2. 購買人姓名</label><input type="text" id="sale-buyer" placeholder="輸入姓名"></div>
+        <div class="input-group">
+            <label>3. 付款方式</label>
+            <select id="pay-method" onchange="calculateProfit()">
+                <option value="現金">現金</option>
+                <option value="匯款/ LPMoney/ iPass Money/電子支付">匯款 / iPass Money / LPMoney</option>
+                <option value="刷卡">刷卡 (2%手續費)</option>
+                <option value="LP">LP (2%手續費)</option>
+                <option value="分期">分期 (2%手續費)</option>
+                <option value="無卡分期">無卡分期 (2%手續費)</option>
+                <option value="行動支付">行動支付 (2%手續費)</option>
+            </select>
+        </div>
+        <div class="input-group"><label>4. 成交售價</label><input type="number" id="sale-price" placeholder="輸入售價" oninput="calculateProfit()"></div>
+        <div class="input-group">
+            <label>5. 承辦人</label>
+            <select id="staff-select">
+                <option value="坤霖">坤霖</option><option value="思璇">思璇</option><option value="䕒尹">䕒尹</option>
+            </select>
+        </div>
+        <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
+    </div>
+
+    <div id="sec-customer" class="section">
+        <div class="input-group"><label>🔍 搜尋包含「流水帳」分頁的紀錄</label><input type="text" id="cust-search-input" placeholder="輸入姓名或序號"></div>
+        <button class="btn" style="background:#0984e3;" onclick="searchCustomer()">立即從 Excel 搜尋</button>
+        <div id="search-result-display" style="margin-top:15px;"></div>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 請確保此網址與您 Apps Script 的最新部署網址一致
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6PZqyrRqHscFdZHNTsKnVdpMl3Y7_oKDAEVlkHP6fLq885htw0HRe0HImSU7DU1xhww/exec";
+    
+    const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentCost = 0;
+
+    window.switchTab = (t) => {
+        document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-'+t).classList.add('active');
+        document.getElementById('sec-'+t).classList.add('active');
+    };
+
+    window.autoFetch = () => {
+        const sn = document.getElementById('sale-scan').value.replace(/[^a-zA-Z0-9]/g, "").trim();
+        if (sn.length < 3) return;
+        db.ref('inventory/' + sn).once('value').then(snap => {
+            if (snap.exists()) {
+                const d = snap.val();
+                document.getElementById('res-item').innerText = d.name;
+                document.getElementById('res-cost').innerText = "$" + d.cost;
+                currentCost = parseFloat(d.cost);
+                calculateProfit();
+            } else {
+                document.getElementById('res-item').innerText = "❌ 無此庫存";
+                currentCost = 0;
+                calculateProfit();
+            }
+        });
+    };
+
+    window.calculateProfit = () => {
+        const price = parseFloat(document.getElementById('sale-price').value) || 0;
+        const method = document.getElementById('pay-method').value;
+        const feeNotice = document.getElementById('fee-notice');
+        
+        let fee = 0;
+        const feeList = ["刷卡", "分期", "無卡分期", "LP", "行動支付"];
+        if (feeList.some(f => method.includes(f))) {
+            fee = price * 0.02;
+            feeNotice.innerText = "(已預扣 2% 手續費: $" + Math.round(fee) + ")";
+            feeNotice.style.color = "#e74c3c";
+        } else {
+            feeNotice.innerText = "(無手續費)";
+            feeNotice.style.color = "gray";
+        }
+
+        const p = Math.round(price - currentCost - fee);
+        document.getElementById('res-profit').innerText = "$" + p;
+        return p;
+    };
+
+    window.executeCheckout = () => {
+        // 已修正所有拼寫錯誤 getElementById
+        const sn = document.getElementById('sale-scan').value.trim();
+        const buyer = document.getElementById('sale-buyer').value.trim();
+        const price = parseFloat(document.getElementById('sale-price').value);
+        const method = document.getElementById('pay-method').value;
+        const itemName = document.getElementById('res-item').innerText;
+
+        if (!buyer || isNaN(price) || itemName.includes("❌")) return alert("請確認姓名、售價與序號是否正確");
+
+        const btn = document.getElementById('btn-pay-exec');
+        btn.innerText = "同步中...";
+        btn.disabled = true;
+
+        const payload = {
+            action: "checkout",
+            date: new Date().toLocaleDateString('zh-TW'),
+            payMethod: method,
+            consumerName: buyer + " - " + itemName,
+            price: price,
+            cost: currentCost, 
+            note: sn, 
+            staff: document.getElementById('staff-select').value
+        };
+
+        fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) })
+        .then(() => {
+            // 資料已回填至庫存表與流水帳，最後從 Firebase 移除該筆庫存資訊
+            db.ref('inventory/' + sn.replace(/[^a-zA-Z0-9]/g, "")).remove();
+            alert("✅ 結帳成功！\n1. 流水帳已新增\n2. 庫存表已填入銷貨資訊");
+            location.reload();
+        })
+        .catch(err => {
+            alert("同步失敗：" + err.message);
+            btn.disabled = false;
+        });
+    };
+
+    window.searchCustomer = () => {
+        const k = document.getElementById('cust-search-input').value.trim();
+        if (!k) return alert("請輸入搜尋內容");
+        const disp = document.getElementById('search-result-display');
+        disp.innerHTML = "🔍 正在翻閱所有流水帳...";
+
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "search", keyword: k })
+        })
+        .then(res => res.json())
+        .then(results => {
+            if (!results || results.length === 0) {
+                disp.innerHTML = "❌ 在 Excel 中查無此紀錄。";
+                return;
+            }
+            let html = `<p style="color:gray; font-size:12px;">找到 ${results.length} 筆紀錄：</p>`;
+            results.forEach(r => {
+                html += `<div class="history-item"><b>📅 ${r.date} (${r.year})</b><br>👤 ${r.name}<br>💰 $${r.price}<br>📝 ${r.note}</div>`;
+            });
+            disp.innerHTML = html;
+        });
+    };
+</script>
+</body>
+</html>
