@@ -7,109 +7,169 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        :root { --pinle-green: #2ecc71; --pinle-dark: #27ae60; --pinle-blue: #3498db; }
-        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 480px; }
-        h2 { text-align: center; color: #333; margin-bottom: 25px; }
+        :root { 
+            --pinle-green: #2ecc71; 
+            --pinle-dark: #27ae60; 
+            --pinle-blue: #3498db; 
+            --bg-gray: #f0f2f5;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; color: #333; }
+        .container { width: 100%; max-width: 500px; margin: 0 auto; }
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; letter-spacing: 1px; }
+
+        /* 卡片設計 */
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 16px; 
+            box-shadow: var(--card-shadow); 
+            margin-bottom: 25px; 
+            border: 1px solid #e1e4e8;
+        }
+        .card-title { 
+            font-size: 1.2rem; 
+            font-weight: bold; 
+            margin-bottom: 20px; 
+            color: #2c3e50; 
+            display: flex; 
+            align-items: center; 
+            border-left: 5px solid var(--pinle-green);
+            padding-left: 10px;
+        }
+        .card-title.query { border-left-color: var(--pinle-blue); }
+
         .input-group { margin-bottom: 18px; }
-        label { display: block; font-weight: bold; margin-bottom: 8px; color: #555; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        .result-box { background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 5px solid var(--pinle-green); margin: 20px 0; }
-        .result-line { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .profit { font-weight: bold; color: #e67e22; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
-        .btn:disabled { background: #ccc !important; cursor: not-allowed; }
-        hr { border: 0; border-top: 1px solid #eee; margin: 30px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-        th { background: #f8f9fa; border-bottom: 2px solid #ddd; padding: 8px; text-align: left; }
-        td { border-bottom: 1px solid #eee; padding: 8px; }
+        label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: #5a67d8; }
+        
+        input, select { 
+            width: 100%; padding: 12px; border: 1.5px solid #e1e4e8; border-radius: 10px; 
+            box-sizing: border-box; font-size: 16px; transition: border-color 0.2s;
+            background-color: #fdfdfd;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--pinle-blue); background-color: white; }
+
+        /* 結果顯示盒 */
+        .result-box { 
+            background: #f8fbf9; padding: 18px; border-radius: 12px; 
+            border: 1px dashed var(--pinle-green); margin-bottom: 20px; 
+        }
+        .result-line { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem; }
+        .profit { font-size: 1.1rem; font-weight: 800; color: #e67e22; }
+        
+        /* 按鈕設計 */
+        .btn { 
+            width: 100%; padding: 16px; border: none; border-radius: 12px; 
+            font-size: 17px; font-weight: bold; cursor: pointer; color: white; 
+            transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn-pay { background: var(--pinle-green); }
+        .btn-pay:hover { background: var(--pinle-dark); transform: translateY(-1px); }
+        .btn-query { background: var(--pinle-blue); }
+        .btn-query:hover { background: #2980b9; }
+        .btn:active { transform: translateY(1px); }
+        .btn:disabled { background: #cbd5e0 !important; cursor: not-allowed; box-shadow: none; }
+
+        /* 表格優化 */
+        .scroll-area { max-height: 400px; overflow-y: auto; border-radius: 8px; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th { background: #f7fafc; position: sticky; top: 0; padding: 12px 8px; text-align: left; font-size: 0.85rem; color: #718096; border-bottom: 2px solid #edf2f7; }
+        td { padding: 12px 8px; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; }
+        
+        .year-tag { background: #e2f9eb; color: #27ae60; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        #fee-notice { font-size: 12px; color: #a0aec0; margin-top: 4px; display: block; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>品樂通訊 POS 系統</h2>
+    <h2>品樂通訊 管理系統</h2>
 
-    <div class="input-group">
-        <label>1. 掃描產品序號</label>
-        <input type="text" id="sale-scan" placeholder="請掃描或輸入序號" oninput="autoFetch()">
-    </div>
-
-    <div class="result-box">
-        <div class="result-line"><span>品名：</span><span id="res-item" style="font-weight:bold;">等待輸入...</span></div>
-        <div class="result-line"><span>進貨成本：</span><span id="res-cost">$0</span></div>
-        <div class="result-line"><span>預估毛利：</span><span id="res-profit" class="profit">$0</span></div>
-        <small id="fee-notice" style="color: #888;">(手續費計算中...)</small>
-    </div>
-
-    <div class="input-group">
-        <label>2. 購買人姓名</label>
-        <input type="text" id="sale-buyer" placeholder="請輸入購買人姓名">
-    </div>
-
-    <div class="input-group">
-        <label>3. 實際成交售價</label>
-        <input type="number" id="sale-price" placeholder="請輸入金額" oninput="calculateProfit()">
-    </div>
-
-    <div class="input-group">
-        <label>4. 付款方式</label>
-        <select id="pay-method" onchange="calculateProfit()">
-            <option value="現金">現金</option>
-            <option value="匯款 / LPMoney / iPass Money/電子支付">匯款 / LPMoney / 電支</option>
-            <option value="刷卡">刷卡 (2%)</option>
-            <option value="LP">LP (2%)</option>
-            <option value="分期">分期 (2%)</option>
-            <option value="無卡分期">無卡分期 (2%)</option>
-            <option value="行動支付">行動支付 (2%)</option>
-        </select>
-    </div>
-
-    <div class="input-group">
-        <label>5. 承辦人</label>
-        <select id="staff-select">
-            <option value="坤霖">坤霖</option>
-            <option value="思璇">思璇</option>
-            <option value="嘉尹">嘉尹</option>
-        </select>
-    </div>
-
-    <div class="input-group">
-        <label>6. 備註 (只會同步到流水帳 H 欄)</label>
-        <input type="text" id="sale-note-extra" placeholder="例如：贈送保護貼、舊機回收...">
-    </div>
-
-    <button class="btn" style="background:var(--pinle-green);" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
-
-    <hr>
-
-    <div class="input-group">
-        <label>🔍 跨年度客戶紀錄查詢</label>
-        <input type="text" id="query-name" placeholder="輸入客戶姓名 (必填)">
+    <div class="card">
+        <div class="card-title">💰 結帳系統</div>
         
-        <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <div class="input-group">
+            <label>產品序號掃描</label>
+            <input type="text" id="sale-scan" placeholder="請掃描序號" oninput="autoFetch()">
+        </div>
+
+        <div class="result-box">
+            <div class="result-line"><span>品名：</span><span id="res-item" style="font-weight:bold;">等待輸入...</span></div>
+            <div class="result-line"><span>進貨成本：</span><span id="res-cost">$0</span></div>
+            <div class="result-line"><span>預估毛利：</span><span id="res-profit" class="profit">$0</span></div>
+            <span id="fee-notice">輸入售價後計算手續費</span>
+        </div>
+
+        <div class="input-group">
+            <label>購買人姓名</label>
+            <input type="text" id="sale-buyer" placeholder="輸入購買人姓名">
+        </div>
+
+        <div class="input-group">
+            <label>成交售價</label>
+            <input type="number" id="sale-price" placeholder="輸入金額" oninput="calculateProfit()">
+        </div>
+
+        <div class="input-group">
+            <label>付款方式</label>
+            <select id="pay-method" onchange="calculateProfit()">
+                <option value="現金">💵 現金</option>
+                <option value="匯款 / LPMoney / iPass Money/電子支付">🏦 匯款 / 電支 / iPass</option>
+                <option value="刷卡">💳 刷卡 (扣2%)</option>
+                <option value="LP">📱 LP (扣2%)</option>
+                <option value="分期">🗓️ 分期 (扣2%)</option>
+                <option value="無卡分期">🚫 無卡分期 (扣2%)</option>
+                <option value="行動支付">🤳 行動支付 (扣2%)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>承辦人</label>
+            <select id="staff-select">
+                <option value="坤霖">坤霖</option>
+                <option value="思璇">思璇</option>
+                <option value="嘉尹">嘉尹</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>備註 (同步至流水帳 H 欄)</label>
+            <input type="text" id="sale-note-extra" placeholder="例如：加贈保護貼">
+        </div>
+
+        <button class="btn btn-pay" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
+    </div>
+
+    <div class="card">
+        <div class="card-title query">🔍 客戶資料查詢</div>
+        
+        <div class="input-group">
+            <label>搜尋客戶姓名</label>
+            <input type="text" id="query-name" placeholder="輸入姓名 (必填)">
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <div style="flex: 1;">
-                <label style="font-size: 12px; color: #888;">開始日期 (選填)</label>
+                <label>開始日期</label>
                 <input type="date" id="query-start-date">
             </div>
             <div style="flex: 1;">
-                <label style="font-size: 12px; color: #888;">結束日期 (選填)</label>
+                <label>結束日期</label>
                 <input type="date" id="query-end-date">
             </div>
         </div>
         
-        <button onclick="searchCustomer()" style="margin-top: 12px; width: 100%; padding: 12px; background: var(--pinle-blue); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-            搜尋所有年度紀錄
-        </button>
-    </div>
+        <button onclick="searchCustomer()" class="btn btn-query">搜尋歷年成交紀錄</button>
 
-    <div id="query-results" style="margin-top: 15px; font-size: 14px; max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 5px;">
-        <p style="text-align: center; color: #999;">尚未進行搜尋</p>
+        <div id="query-results" class="scroll-area">
+            <p style="text-align: center; color: #a0aec0; margin-top: 20px; font-size: 0.9rem;">尚未進行搜尋</p>
+        </div>
     </div>
 </div>
 
 <script>
-    // --- 1. Firebase & API 設定 ---
+    // --- 1. Firebase & API 設定 (維持原樣) ---
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -117,7 +177,7 @@
 
     let currentCost = 0;
 
-    // --- 2. 自動偵測序號 ---
+    // --- 2. 自動偵測序號 (邏輯不變) ---
     window.autoFetch = () => {
         const snInput = document.getElementById('sale-scan');
         const sn = snInput.value.replace(/[^a-zA-Z0-9]/g, "").trim();
@@ -132,21 +192,20 @@
             if (snap.exists()) {
                 const d = snap.val();
                 if (d.soldTo && d.soldTo.trim() !== "") {
-                    resItem.innerHTML = `<span style="color:red;">⚠️ 已售出 (對象: ${d.soldTo})</span>`;
+                    resItem.innerHTML = `<span style="color:#e53e3e;">⚠️ 已售出 (${d.soldTo})</span>`;
                     currentCost = 0;
                     btnPay.disabled = true;
-                    feeNotice.innerText = "❌ 此序號庫存狀態為已銷貨";
+                    feeNotice.innerText = "❌ 此序號庫存已售罄";
                 } else {
                     resItem.innerText = d.name;
-                    resItem.style.color = "black";
+                    resItem.style.color = "#2d3748";
                     resCost.innerText = "$" + d.cost;
                     currentCost = parseFloat(d.cost);
                     btnPay.disabled = false;
-                    btnPay.style.background = "var(--pinle-green)";
                 }
             } else {
                 resItem.innerText = "❌ 無此庫存";
-                resItem.style.color = "red";
+                resItem.style.color = "#e53e3e";
                 currentCost = 0;
                 btnPay.disabled = true;
             }
@@ -163,12 +222,12 @@
         let fee = 0;
         if (feeList.some(item => method.includes(item))) {
             fee = price * 0.02;
-            document.getElementById('fee-notice').innerText = "已扣 2% 手續費: $" + Math.round(fee);
+            document.getElementById('fee-notice').innerText = "💡 已扣 2% 手續費: $" + Math.round(fee);
         } else {
-            document.getElementById('fee-notice').innerText = "此方式免手續費";
+            document.getElementById('fee-notice').innerText = "✅ 此付款方式免手續費";
         }
         const profit = Math.round(price - currentCost - fee);
-        document.getElementById('res-profit').innerText = "$" + profit;
+        document.getElementById('res-profit').innerText = "$" + profit.toLocaleString();
     };
 
     // --- 4. 結帳執行 ---
@@ -181,12 +240,12 @@
         const extraNote = document.getElementById('sale-note-extra').value.trim();
 
         if (!buyer || !price || currentCost === 0) {
-            alert("請填寫完整資訊");
+            alert("請填寫完整資訊並確認成本！");
             return;
         }
 
         btn.disabled = true;
-        btn.innerText = "同步中...";
+        btn.innerText = "🚀 同步 Excel 中...";
 
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
@@ -204,12 +263,13 @@
         })
         .then(res => res.text())
         .then(text => {
-            alert("✅ " + text);
+            alert("結帳成功！\n" + text);
             location.reload();
         })
         .catch(err => {
-            alert("❌ 失敗：" + err);
+            alert("同步失敗，請再試一次：" + err);
             btn.disabled = false;
+            btn.innerText = "確認結帳並同步 Excel";
         });
     };
 
@@ -220,8 +280,8 @@
         const endDate = document.getElementById('query-end-date').value;
         const resultDiv = document.getElementById('query-results');
 
-        if (!name) { alert("請輸入客戶姓名"); return; }
-        resultDiv.innerHTML = '<p style="text-align: center;">🔎 正在搜尋歷年帳目...</p>';
+        if (!name) { alert("請輸入客戶姓名！"); return; }
+        resultDiv.innerHTML = '<p style="text-align: center; color: #4a5568;">🔍 正在翻閱歷年流水帳...</p>';
 
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
@@ -235,23 +295,23 @@
         .then(res => res.json())
         .then(data => {
             if (data.length === 0) {
-                resultDiv.innerHTML = '<p style="text-align: center; color: red;">❌ 找不到紀錄</p>';
+                resultDiv.innerHTML = '<p style="text-align: center; color: #e53e3e; padding: 20px;">找不到符合的成交紀錄</p>';
                 return;
             }
-            let html = '<table><tr><th>日期/年度</th><th>客戶</th><th>備註</th><th>金額</th></tr>';
+            let html = '<table><thead><tr><th>日期/年度</th><th>客戶紀錄</th><th>備註</th><th>金額</th></tr></thead><tbody>';
             data.forEach(r => {
                 html += `<tr>
-                    <td>${r.date}<br><small style="color:var(--pinle-green)">(${r.year}年)</small></td>
+                    <td>${r.date}<br><span class="year-tag">${r.year}</span></td>
                     <td><b>${r.name}</b></td>
-                    <td>${r.note}</td>
+                    <td style="font-size: 12px; color: #718096;">${r.note}</td>
                     <td style="color:#e67e22; font-weight:bold;">$${Number(r.price).toLocaleString()}</td>
                 </tr>`;
             });
-            html += '</table>';
+            html += '</tbody></table>';
             resultDiv.innerHTML = html;
         })
         .catch(err => {
-            resultDiv.innerHTML = '<p style="text-align: center; color: red;">❌ 搜尋出錯</p>';
+            resultDiv.innerHTML = '<p style="text-align: center; color: #e53e3e; padding: 20px;">查詢發生錯誤</p>';
         });
     };
 </script>
