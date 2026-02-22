@@ -16,10 +16,9 @@
         }
         
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; color: #333; }
-        .container { width: 100%; max-width: 500px; margin: 0 auto; }
+        .container { width: 100%; max-width: 600px; margin: 0 auto; }
         h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; letter-spacing: 1px; }
 
-        /* 卡片設計 */
         .card { 
             background: white; 
             padding: 25px; 
@@ -40,6 +39,10 @@
         }
         .card-title.query { border-left-color: var(--pinle-blue); }
 
+        /* 左右並排佈局 */
+        .flex-row { display: flex; gap: 15px; align-items: flex-start; margin-bottom: 18px; }
+        .flex-item { flex: 1; }
+
         .input-group { margin-bottom: 18px; }
         label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: #5a67d8; }
         
@@ -50,15 +53,15 @@
         }
         input:focus, select:focus { outline: none; border-color: var(--pinle-blue); background-color: white; }
 
-        /* 結果顯示盒 */
+        /* 顯示盒優化 */
         .result-box { 
-            background: #f8fbf9; padding: 18px; border-radius: 12px; 
-            border: 1px dashed var(--pinle-green); margin-bottom: 20px; 
+            background: #f8fbf9; padding: 15px; border-radius: 12px; 
+            border: 1px dashed var(--pinle-green); height: 110px; 
+            display: flex; flex-direction: column; justify-content: center;
         }
-        .result-line { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem; }
-        .profit { font-size: 1.1rem; font-weight: 800; color: #e67e22; }
+        .result-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; }
+        .profit { font-size: 1rem; font-weight: 800; color: #e67e22; }
         
-        /* 按鈕設計 */
         .btn { 
             width: 100%; padding: 16px; border: none; border-radius: 12px; 
             font-size: 17px; font-weight: bold; cursor: pointer; color: white; 
@@ -68,17 +71,15 @@
         .btn-pay:hover { background: var(--pinle-dark); transform: translateY(-1px); }
         .btn-query { background: var(--pinle-blue); }
         .btn-query:hover { background: #2980b9; }
-        .btn:active { transform: translateY(1px); }
         .btn:disabled { background: #cbd5e0 !important; cursor: not-allowed; box-shadow: none; }
 
-        /* 表格優化 */
         .scroll-area { max-height: 400px; overflow-y: auto; border-radius: 8px; margin-top: 15px; }
         table { width: 100%; border-collapse: collapse; background: white; }
         th { background: #f7fafc; position: sticky; top: 0; padding: 12px 8px; text-align: left; font-size: 0.85rem; color: #718096; border-bottom: 2px solid #edf2f7; }
         td { padding: 12px 8px; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; }
         
         .year-tag { background: #e2f9eb; color: #27ae60; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        #fee-notice { font-size: 12px; color: #a0aec0; margin-top: 4px; display: block; }
+        #fee-notice { font-size: 11px; color: #a0aec0; margin-top: 4px; display: block; }
     </style>
 </head>
 <body>
@@ -89,30 +90,33 @@
     <div class="card">
         <div class="card-title">💰 結帳系統</div>
         
-        <div class="input-group">
-            <label>產品序號掃描</label>
-            <input type="text" id="sale-scan" placeholder="請掃描序號" oninput="autoFetch()">
-        </div>
-
-        <div class="result-box">
-            <div class="result-line"><span>品名：</span><span id="res-item" style="font-weight:bold;">等待輸入...</span></div>
-            <div class="result-line"><span>進貨成本：</span><span id="res-cost">$0</span></div>
-            <div class="result-line"><span>預估毛利：</span><span id="res-profit" class="profit">$0</span></div>
-            <span id="fee-notice">輸入售價後計算手續費</span>
-        </div>
-
-        <div class="input-group">
-            <label>購買人姓名</label>
-            <input type="text" id="sale-buyer" placeholder="輸入購買人姓名">
-        </div>
-
-        <div class="input-group">
-            <label>成交售價</label>
-            <input type="number" id="sale-price" placeholder="輸入金額" oninput="calculateProfit()">
+        <div class="flex-row">
+            <div class="flex-item">
+                <label>1. 掃描產品序號 (E 欄)</label>
+                <input type="text" id="sale-scan" placeholder="請掃描或輸入序號" oninput="autoFetch()" style="height: 110px; font-size: 18px; text-align: center;">
+            </div>
+            <div class="flex-item">
+                <div class="result-box">
+                    <div class="result-line"><span>品名：</span><span id="res-item" style="font-weight:bold;">等待輸入...</span></div>
+                    <div class="result-line"><span>進貨成本：</span><span id="res-cost">$0</span></div>
+                    <div class="result-line"><span>預估毛利：</span><span id="res-profit" class="profit">$0</span></div>
+                    <span id="fee-notice">(手續費計算中...)</span>
+                </div>
+            </div>
         </div>
 
         <div class="input-group">
-            <label>付款方式</label>
+            <label>2. 購買人姓名</label>
+            <input type="text" id="sale-buyer" placeholder="請輸入購買人姓名">
+        </div>
+
+        <div class="input-group">
+            <label>3. 實際成交售價</label>
+            <input type="number" id="sale-price" placeholder="請輸入金額" oninput="calculateProfit()">
+        </div>
+
+        <div class="input-group">
+            <label>4. 付款方式</label>
             <select id="pay-method" onchange="calculateProfit()">
                 <option value="現金">💵 現金</option>
                 <option value="匯款 / LPMoney / iPass Money/電子支付">🏦 匯款 / 電支 / iPass</option>
@@ -125,7 +129,7 @@
         </div>
 
         <div class="input-group">
-            <label>承辦人</label>
+            <label>5. 承辦人</label>
             <select id="staff-select">
                 <option value="坤霖">坤霖</option>
                 <option value="思璇">思璇</option>
@@ -134,8 +138,8 @@
         </div>
 
         <div class="input-group">
-            <label>備註 (同步至流水帳 H 欄)</label>
-            <input type="text" id="sale-note-extra" placeholder="例如：加贈保護貼">
+            <label>6. 備註 (同步至流水帳 H 欄)</label>
+            <input type="text" id="sale-note-extra" placeholder="例如：贈送保護貼、舊機回收...">
         </div>
 
         <button class="btn btn-pay" id="btn-pay-exec" onclick="executeCheckout()">確認結帳並同步 Excel</button>
@@ -169,7 +173,6 @@
 </div>
 
 <script>
-    // --- 1. Firebase & API 設定 (維持原樣) ---
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -177,7 +180,6 @@
 
     let currentCost = 0;
 
-    // --- 2. 自動偵測序號 (邏輯不變) ---
     window.autoFetch = () => {
         const snInput = document.getElementById('sale-scan');
         const sn = snInput.value.replace(/[^a-zA-Z0-9]/g, "").trim();
@@ -192,10 +194,10 @@
             if (snap.exists()) {
                 const d = snap.val();
                 if (d.soldTo && d.soldTo.trim() !== "") {
-                    resItem.innerHTML = `<span style="color:#e53e3e;">⚠️ 已售出 (${d.soldTo})</span>`;
+                    resItem.innerHTML = `<span style="color:#e53e3e;">⚠️ 已售出</span>`;
                     currentCost = 0;
                     btnPay.disabled = true;
-                    feeNotice.innerText = "❌ 此序號庫存已售罄";
+                    feeNotice.innerText = "❌ 已銷貨給 " + d.soldTo;
                 } else {
                     resItem.innerText = d.name;
                     resItem.style.color = "#2d3748";
@@ -213,7 +215,6 @@
         });
     };
 
-    // --- 3. 計算利潤 ---
     window.calculateProfit = () => {
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const method = document.getElementById('pay-method').value;
@@ -222,15 +223,14 @@
         let fee = 0;
         if (feeList.some(item => method.includes(item))) {
             fee = price * 0.02;
-            document.getElementById('fee-notice').innerText = "💡 已扣 2% 手續費: $" + Math.round(fee);
+            document.getElementById('fee-notice').innerText = "💡 扣手續費: $" + Math.round(fee);
         } else {
-            document.getElementById('fee-notice').innerText = "✅ 此付款方式免手續費";
+            document.getElementById('fee-notice').innerText = "✅ 免手續費";
         }
         const profit = Math.round(price - currentCost - fee);
         document.getElementById('res-profit').innerText = "$" + profit.toLocaleString();
     };
 
-    // --- 4. 結帳執行 ---
     window.executeCheckout = () => {
         const btn = document.getElementById('btn-pay-exec');
         const buyer = document.getElementById('sale-buyer').value.trim();
@@ -240,12 +240,12 @@
         const extraNote = document.getElementById('sale-note-extra').value.trim();
 
         if (!buyer || !price || currentCost === 0) {
-            alert("請填寫完整資訊並確認成本！");
+            alert("請掃描序號並填寫完整資訊！");
             return;
         }
 
         btn.disabled = true;
-        btn.innerText = "🚀 同步 Excel 中...";
+        btn.innerText = "🚀 同步中...";
 
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
@@ -263,17 +263,16 @@
         })
         .then(res => res.text())
         .then(text => {
-            alert("結帳成功！\n" + text);
+            alert("✅ " + text);
             location.reload();
         })
         .catch(err => {
-            alert("同步失敗，請再試一次：" + err);
+            alert("同步失敗：" + err);
             btn.disabled = false;
             btn.innerText = "確認結帳並同步 Excel";
         });
     };
 
-    // --- 5. 跨年份客戶查詢 ---
     window.searchCustomer = () => {
         const name = document.getElementById('query-name').value.trim();
         const startDate = document.getElementById('query-start-date').value;
@@ -281,7 +280,7 @@
         const resultDiv = document.getElementById('query-results');
 
         if (!name) { alert("請輸入客戶姓名！"); return; }
-        resultDiv.innerHTML = '<p style="text-align: center; color: #4a5568;">🔍 正在翻閱歷年流水帳...</p>';
+        resultDiv.innerHTML = '<p style="text-align: center; color: #4a5568;">🔍 查詢中...</p>';
 
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
@@ -295,7 +294,7 @@
         .then(res => res.json())
         .then(data => {
             if (data.length === 0) {
-                resultDiv.innerHTML = '<p style="text-align: center; color: #e53e3e; padding: 20px;">找不到符合的成交紀錄</p>';
+                resultDiv.innerHTML = '<p style="text-align: center; color: #e53e3e; padding: 20px;">找不到紀錄</p>';
                 return;
             }
             let html = '<table><thead><tr><th>日期/年度</th><th>客戶紀錄</th><th>備註</th><th>金額</th></tr></thead><tbody>';
@@ -311,7 +310,7 @@
             resultDiv.innerHTML = html;
         })
         .catch(err => {
-            resultDiv.innerHTML = '<p style="text-align: center; color: #e53e3e; padding: 20px;">查詢發生錯誤</p>';
+            resultDiv.innerHTML = '<p style="text-align: center; color: #e53e3e; padding: 20px;">查詢出錯</p>';
         });
     };
 </script>
