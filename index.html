@@ -16,22 +16,18 @@
         }
         
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; color: #333; }
-        
-        /* 調整容器寬度以容納左右並排 */
         .container { width: 100%; max-width: 1100px; margin: 0 auto; }
         h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; letter-spacing: 1px; }
 
-        /* 大區塊並排容器 */
         .main-flex { display: flex; gap: 25px; align-items: flex-start; }
         
-        /* 卡片基礎樣式 */
         .card { 
             background: white; 
             padding: 25px; 
             border-radius: 16px; 
             box-shadow: var(--card-shadow); 
             border: 1px solid #e1e4e8;
-            flex: 1; /* 讓兩個區塊平分寬度 */
+            flex: 1;
         }
 
         .card-title { 
@@ -46,7 +42,6 @@
         }
         .card-title.query { border-left-color: var(--pinle-blue); }
 
-        /* 內部的細項配置 */
         .input-group { margin-bottom: 18px; }
         label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: #5a67d8; }
         
@@ -56,7 +51,6 @@
             background-color: #fdfdfd;
         }
 
-        /* 結帳結果顯示盒 */
         .result-box { 
             background: #f8fbf9; padding: 15px; border-radius: 12px; 
             border: 1px dashed var(--pinle-green); margin-bottom: 15px;
@@ -79,14 +73,13 @@
         td { padding: 12px 8px; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; }
         .year-tag { background: #e2f9eb; color: #27ae60; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
 
-        /* 手機模式自動切換回上下排 */
         @media (max-width: 900px) {
             .main-flex { flex-direction: column; }
             .card { width: 100%; }
         }
     </style>
 </head>
-<body>
+<body onload="loadParameters()">
 
 <div class="container">
     <h2>品樂通訊 管理系統</h2>
@@ -131,7 +124,21 @@
             </div>
 
             <div class="input-group">
-                <label>5. 承辦人</label>
+                <label>5. 收入類別 (流水帳 B 欄)</label>
+                <select id="income-type">
+                    <option value="">載入中...</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>6. 支出類別 (流水帳 C 欄)</label>
+                <select id="expense-type">
+                    <option value="">載入中...</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>7. 承辦人</label>
                 <select id="staff-select">
                     <option value="坤霖">坤霖</option>
                     <option value="思璇">思璇</option>
@@ -140,7 +147,7 @@
             </div>
 
             <div class="input-group">
-                <label>6. 備註 (H 欄)</label>
+                <label>8. 備註 (H 欄)</label>
                 <input type="text" id="sale-note-extra" placeholder="加贈保護貼等...">
             </div>
 
@@ -182,6 +189,35 @@
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6PZqyrRqHscFdZHNTsKnVdpMl3Y7_oKDAEVlkHP6fLq885htw0HRe0HImSU7DU1xhww/exec";
 
     let currentCost = 0;
+
+    // --- 新增：載入參數表連動選單 ---
+    window.loadParameters = () => {
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "getParameters" })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const incomeSelect = document.getElementById('income-type');
+            const expenseSelect = document.getElementById('expense-type');
+            
+            // 填入收入類別 (A 欄)
+            incomeSelect.innerHTML = '<option value="">-- 請選擇收入類別 --</option>';
+            data.incomeList.forEach(item => {
+                if(item) incomeSelect.innerHTML += `<option value="${item}">${item}</option>`;
+            });
+
+            // 填入支出類別 (B 欄)
+            expenseSelect.innerHTML = '<option value="">-- 無支出 (預設) --</option>';
+            data.expenseList.forEach(item => {
+                if(item) expenseSelect.innerHTML += `<option value="${item}">${item}</option>`;
+            });
+        })
+        .catch(err => {
+            console.error("參數載入失敗", err);
+            document.getElementById('income-type').innerHTML = '<option value="">載入失敗</option>';
+        });
+    };
 
     window.autoFetch = () => {
         const snInput = document.getElementById('sale-scan');
@@ -235,6 +271,8 @@
         const sn = document.getElementById('sale-scan').value.trim();
         const itemName = document.getElementById('res-item').innerText;
         const extraNote = document.getElementById('sale-note-extra').value.trim();
+        const incomeType = document.getElementById('income-type').value;
+        const expenseType = document.getElementById('expense-type').value;
 
         if (!buyer || !price || currentCost === 0) {
             alert("請填寫完整資訊！"); return;
@@ -247,6 +285,8 @@
                 action: "checkout",
                 date: new Date().toLocaleDateString('zh-TW'),
                 payMethod: document.getElementById('pay-method').value,
+                incomeType: incomeType,
+                expenseType: expenseType,
                 consumerName: buyer + " - " + itemName,
                 price: price, cost: currentCost, sn: sn,
                 extraNote: extraNote, staff: document.getElementById('staff-select').value
