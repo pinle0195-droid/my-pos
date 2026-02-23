@@ -186,11 +186,13 @@
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    
+    // 這裡是更新後的新部署網址
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6PZqyrRqHscFdZHNTsKnVdpMl3Y7_oKDAEVlkHP6fLq885htw0HRe0HImSU7DU1xhww/exec";
 
     let currentCost = 0;
 
-    // --- 新增：載入參數表連動選單 ---
+    // --- 載入參數表連動選單 ---
     window.loadParameters = () => {
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
@@ -201,13 +203,13 @@
             const incomeSelect = document.getElementById('income-type');
             const expenseSelect = document.getElementById('expense-type');
             
-            // 填入收入類別 (A 欄)
+            // 填入收入類別
             incomeSelect.innerHTML = '<option value="">-- 請選擇收入類別 --</option>';
             data.incomeList.forEach(item => {
                 if(item) incomeSelect.innerHTML += `<option value="${item}">${item}</option>`;
             });
 
-            // 填入支出類別 (B 欄)
+            // 填入支出類別
             expenseSelect.innerHTML = '<option value="">-- 無支出 (預設) --</option>';
             data.expenseList.forEach(item => {
                 if(item) expenseSelect.innerHTML += `<option value="${item}">${item}</option>`;
