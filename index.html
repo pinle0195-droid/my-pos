@@ -7,12 +7,13 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
+        /* 🎨 提醒條閃爍動畫 */
         @keyframes fadeIt {
-    0% { background-color: #fff3cd; }
-    50% { background-color: #ffeeba; }
-    100% { background-color: #fff3cd; }
-}
-        /* 🎨 樣式美化 */
+            0% { background-color: #fff3cd; }
+            50% { background-color: #ffeeba; }
+            100% { background-color: #fff3cd; }
+        }
+        
         :root { 
             --pinle-green: #2ecc71; 
             --pinle-dark: #27ae60; 
@@ -107,7 +108,6 @@
 </div>
 
 <script>
-    // ⚙️ 設定 Firebase 與 GAS 網址
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -115,44 +115,37 @@
 
     let currentCost = 0;
 
-    // 🚀 初始化
     function initAll() {
         loadParameters();
         checkReminders();
         document.getElementById('order-date').valueAsDate = new Date();
     }
 
-    // 💡 檢查明日取貨 (修正版：處理物件格式並增加動畫)
+    // 💡 檢查明日取貨 (穩定版：移除 no-cors 確保資料能正確讀取)
     function checkReminders() {
         fetch(GOOGLE_SCRIPT_URL, { 
             method: "POST", 
-            mode: "no-cors", // 如果遇到跨網域問題可嘗試移除此行
             body: JSON.stringify({ action: "getReminders" }) 
         })
-        .then(res => res.json()).then(list => {
+        .then(res => res.json())
+        .then(list => {
+            console.log("提醒資料:", list);
             if (list && list.length > 0) {
                 const bar = document.getElementById('reminder-bar');
                 const text = document.getElementById('reminder-text');
-                
-                // 將物件陣列轉化為文字：張三(iPhone 15)、李四(平板)...
-                const reminderMsg = list.map(item => `${item.name}(${item.product})`).join('、');
-                
+                const msg = list.map(item => `${item.name}(${item.product})`).join('、');
                 bar.style.display = 'block';
-                text.innerText = reminderMsg + "。";
-                
-                // 增加一個簡單的閃爍效果提醒注意
+                text.innerText = msg + "。";
                 bar.style.animation = "fadeIt 2s infinite";
             }
         }).catch(err => console.log("提醒檢查失敗:", err));
     }
 
-    // 📦 儲存客訂
     window.saveOrder = () => {
         const name = document.getElementById('order-name').value;
         const product = document.getElementById('order-product').value;
         const pickup = document.getElementById('pickup-date').value;
         if (!name || !product || !pickup) { alert("請填寫姓名、品名與取貨日期"); return; }
-
         fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             body: JSON.stringify({
@@ -163,7 +156,6 @@
         }).then(res => res.text()).then(msg => { alert(msg); location.reload(); });
     };
 
-    // 📋 載入參數表
     window.loadParameters = () => {
         fetch(GOOGLE_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
         .then(res => res.json()).then(data => {
@@ -172,7 +164,6 @@
         });
     };
 
-    // 🔍 自動抓取庫存
     window.autoFetch = () => {
         const sn = document.getElementById('sale-scan').value.replace(/[^a-zA-Z0-9]/g, "").trim();
         if (sn.length < 3) return;
@@ -198,7 +189,6 @@
         });
     };
 
-    // 💵 計算毛利與手續費
     window.calculateProfit = () => {
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const method = document.getElementById('pay-method').value;
@@ -208,7 +198,6 @@
         document.getElementById('res-profit').innerText = "$" + Math.round(price - currentCost - fee).toLocaleString();
     };
 
-    // 💳 結帳執行
     window.executeCheckout = () => {
         const btn = document.getElementById('btn-pay-exec');
         btn.disabled = true; btn.innerText = "🚀 同步中...";
@@ -225,14 +214,13 @@
         }).then(res => res.text()).then(text => { alert(text); location.reload(); });
     };
 
-    // 🔎 查詢客戶
     window.searchCustomer = () => {
         const name = document.getElementById('query-name').value;
         if (!name) return;
         document.getElementById('query-results').innerHTML = '<p style="text-align: center;">🔍 查詢中...</p>';
         fetch(GOOGLE_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "queryCustomer", name: name }) })
         .then(res => res.json()).then(data => {
-            if (data.length === 0) { document.getElementById('query-results').innerHTML = '<p style="text-align: center; color: red;">找不到紀錄</p>'; return; }
+            if (!data || data.length === 0) { document.getElementById('query-results').innerHTML = '<p style="text-align: center; color: red;">找不到紀錄</p>'; return; }
             let h = '<table><thead><tr><th>日期</th><th>客戶/品項</th><th>金額</th></tr></thead><tbody>';
             data.forEach(r => h += `<tr><td>${r.date}<br><small>${r.year}</small></td><td><b>${r.name}</b></td><td>$${Number(r.price).toLocaleString()}</td></tr>`);
             document.getElementById('query-results').innerHTML = h + '</tbody></table>';
