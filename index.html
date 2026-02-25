@@ -1,27 +1,67 @@
-// --- 修改後的 saveOrder 函式 (其餘 HTML 代碼保持不變) ---
-window.saveOrder = () => {
-    const name = document.getElementById('order-name').value;
-    const product = document.getElementById('order-product').value;
-    const pickup = document.getElementById('pickup-date').value;
-    const orderDate = document.getElementById('order-date').value;
-    
-    if (!name || !product || !pickup) { 
-        alert("請填寫姓名、品名與取貨日期"); 
-        return; 
-    }
+/**
+ * 品樂通訊 POS 系統 - 總調度後端 (2026 整合最終版)
+ */
 
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "saveOrder", 
-            name: name, 
-            product: product,
-            orderTime: orderDate,
-            pickupTime: pickup, 
-            note: document.getElementById('order-note').value
-        })
-    }).then(res => res.text()).then(msg => { 
-        alert(msg); // 這裡會顯示「客訂資料已儲存並發送 LINE 通知」
-        location.reload(); 
-    });
-};
+// 🔐 LINE API 設定
+var LINE_ACCESS_TOKEN = "13jVEWODdgJ/UYKWKlejTMGdbRa/vxExwz0a6ksr0yGHKiMAtLnE1U2DGAULUeB8C6SoJPE39i6UERNnK0iFvSVvSSNJngO7DC69m+6BQCvVlUZ/us7gAG4ZVgpWy4pnwos4Il4bQJ+bnvAoO+PapAdB04t89/1O/w1cDnyilFU=";
+var LINE_USER_ID = "U97d368fe6b664d0389258509d5304811";
+
+function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // --- 1. 抓取參數表內容 ---
+  if (data.action === "getParameters") {
+    var paramSheet = ss.getSheetByName("參數表");
+    if (!paramSheet) return response("找不到參數表");
+    var incomeValues = paramSheet.getRange("A1:A30").getValues().flat().filter(function(el) { return el !== "" && el !== null; });
+    var expenseValues = paramSheet.getRange("B1:B20").getValues().flat().filter(function(el) { return el !== "" && el !== null; });
+    return response({ incomeList: incomeValues, expenseList: expenseValues }, true);
+  }
+
+  // --- 2. 執行結帳動作 (含 2% 手續費與庫存回填) ---
+  if (data.action === "checkout") {
+    var mainSheet = ss.getSheetByName("流水帳 2026"); 
+    if (!mainSheet) return response("找不到流水帳 2026");
+    var price = parseFloat(data.price) || 0;
+    var cost = parseFloat(data.cost) || 0;
+    var payMethod = data.payMethod;
+    var isFeeMethod = !(["現金", "匯款", "iPass Money"].some(function(m) { return payMethod.indexOf(m) !== -1; }));
+    var fee = isFeeMethod ? (price * 0.02) : 0;
+    var profit = Math.round(price - cost - fee);
+    var rowData = [
+      data.date, data.incomeType, data.expenseType, data.payMethod, data.consumerName,
+      (payMethod !== "現金" ? price : ""), (payMethod === "現金" ? price : ""), 
+      data.extraNote, "", "", "", data.staff, "", profit
+    ];
+    mainSheet.appendRow(rowData);
+    // 庫存回填
+    var searchSn = String(data.sn).trim().toLowerCase();
+    if (searchSn !== "") {
+      var targetSheets = ["手機庫存表", "APPLE穿戴.iPAD", "家電其他"];
+      for (var s = 0; s < targetSheets.length; s++) {
+        var stockSheet = ss.getSheetByName(targetSheets[s]);
+        if (!stockSheet) continue;
+        var stockData = stockSheet.getDataRange().getValues();
+        var found = false;
+        for (var i = 1; i < stockData.length; i++) {
+          if (String(stockData[i][4]).trim().toLowerCase() === searchSn) {
+            stockSheet.getRange(i + 1, 6).setValue(data.date);
+            stockSheet.getRange(i + 1, 8).setValue(data.consumerName);
+            found = true; break;
+          }
+        }
+        if (found) break;
+      }
+    }
+    return response("成功同步至 Excel");
+  }
+
+  // --- 3. 客戶查詢功能 ---
+  if (data.action === "queryCustomer") {
+    var targetName = data.name ? data.name.toLowerCase() : "";
+    var results = [];
+    ss.getSheets().forEach(function(s) {
+      if (s.getName().indexOf("流水帳") !== -1) {
+        var rows = s.getDataRange().getValues();
+        for (var i = 1
