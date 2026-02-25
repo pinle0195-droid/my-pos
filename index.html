@@ -7,13 +7,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        /* 🎨 提醒條閃爍動畫 */
-        @keyframes fadeIt {
-            0% { background-color: #fff3cd; }
-            50% { background-color: #ffeeba; }
-            100% { background-color: #fff3cd; }
-        }
-        
         :root { 
             --pinle-green: #2ecc71; 
             --pinle-dark: #27ae60; 
@@ -43,7 +36,21 @@
         table { width: 100%; border-collapse: collapse; background: white; }
         th { background: #f7fafc; position: sticky; top: 0; padding: 12px 8px; text-align: left; font-size: 0.85rem; color: #718096; border-bottom: 2px solid #edf2f7; }
         td { padding: 12px 8px; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; }
-        #reminder-bar { display:none; background:#fff3cd; color:#856404; padding:15px; text-align:center; font-weight:bold; border:1px solid #ffeeba; border-radius:12px; margin-bottom:20px; font-size: 1.1rem; }
+        
+        /* 💡 靜態提醒條：移除動畫，維持顯眼的黃色 */
+        #reminder-bar { 
+            display:none; 
+            background:#fff3cd; 
+            color:#856404; 
+            padding:15px; 
+            text-align:center; 
+            font-weight:bold; 
+            border:1px solid #ffeeba; 
+            border-radius:12px; 
+            margin-bottom:20px; 
+            font-size: 1.1rem; 
+        }
+        
         @media (max-width: 900px) { .main-flex { flex-direction: column; } .card { width: 100%; } }
     </style>
 </head>
@@ -121,7 +128,6 @@
         document.getElementById('order-date').valueAsDate = new Date();
     }
 
-    // 💡 檢查明日取貨 (穩定版：移除 no-cors 確保資料能正確讀取)
     function checkReminders() {
         fetch(GOOGLE_SCRIPT_URL, { 
             method: "POST", 
@@ -129,14 +135,12 @@
         })
         .then(res => res.json())
         .then(list => {
-            console.log("提醒資料:", list);
             if (list && list.length > 0) {
                 const bar = document.getElementById('reminder-bar');
                 const text = document.getElementById('reminder-text');
                 const msg = list.map(item => `${item.name}(${item.product})`).join('、');
-                bar.style.display = 'block';
+                bar.style.display = 'block'; // 顯示提醒條
                 text.innerText = msg + "。";
-                bar.style.animation = "fadeIt 2s infinite";
             }
         }).catch(err => console.log("提醒檢查失敗:", err));
     }
