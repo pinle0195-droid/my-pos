@@ -117,15 +117,28 @@
         document.getElementById('order-date').valueAsDate = new Date();
     }
 
-    // 💡 檢查明日取貨
+    // 💡 檢查明日取貨 (修正版：處理物件格式並增加動畫)
     function checkReminders() {
-        fetch(GOOGLE_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "getReminders" }) })
+        fetch(GOOGLE_SCRIPT_URL, { 
+            method: "POST", 
+            mode: "no-cors", // 如果遇到跨網域問題可嘗試移除此行
+            body: JSON.stringify({ action: "getReminders" }) 
+        })
         .then(res => res.json()).then(list => {
-            if (list.length > 0) {
-                document.getElementById('reminder-bar').style.display = 'block';
-                document.getElementById('reminder-text').innerText = list.join('、') + "。";
+            if (list && list.length > 0) {
+                const bar = document.getElementById('reminder-bar');
+                const text = document.getElementById('reminder-text');
+                
+                // 將物件陣列轉化為文字：張三(iPhone 15)、李四(平板)...
+                const reminderMsg = list.map(item => `${item.name}(${item.product})`).join('、');
+                
+                bar.style.display = 'block';
+                text.innerText = reminderMsg + "。";
+                
+                // 增加一個簡單的閃爍效果提醒注意
+                bar.style.animation = "fadeIt 2s infinite";
             }
-        });
+        }).catch(err => console.log("提醒檢查失敗:", err));
     }
 
     // 📦 儲存客訂
