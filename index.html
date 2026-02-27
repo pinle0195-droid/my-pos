@@ -37,7 +37,6 @@
         th { background: #f7fafc; position: sticky; top: 0; padding: 12px 8px; text-align: left; font-size: 0.85rem; color: #718096; border-bottom: 2px solid #edf2f7; }
         td { padding: 12px 8px; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; }
         
-        /* 💡 靜態提醒條：移除動畫，維持顯眼的黃色 */
         #reminder-bar { 
             display:none; 
             background:#fff3cd; 
@@ -139,7 +138,7 @@
                 const bar = document.getElementById('reminder-bar');
                 const text = document.getElementById('reminder-text');
                 const msg = list.map(item => `${item.name}(${item.product})`).join('、');
-                bar.style.display = 'block'; // 顯示提醒條
+                bar.style.display = 'block';
                 text.innerText = msg + "。";
             }
         }).catch(err => console.log("提醒檢查失敗:", err));
@@ -157,79 +156,4 @@
                 orderTime: document.getElementById('order-date').value,
                 pickupTime: pickup, note: document.getElementById('order-note').value
             })
-        }).then(res => res.text()).then(msg => { alert(msg); location.reload(); });
-    };
-
-    window.loadParameters = () => {
-        fetch(GOOGLE_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
-        .then(res => res.json()).then(data => {
-            const inc = document.getElementById('income-type');
-            inc.innerHTML = data.incomeList.map(v => `<option value="${v}">${v}</option>`).join('');
-        });
-    };
-
-    window.autoFetch = () => {
-        const sn = document.getElementById('sale-scan').value.replace(/[^a-zA-Z0-9]/g, "").trim();
-        if (sn.length < 3) return;
-        db.ref('inventory/' + sn).once('value').then(snap => {
-            const resItem = document.getElementById('res-item');
-            const resCost = document.getElementById('res-cost');
-            if (snap.exists()) {
-                const d = snap.val();
-                if (d.soldTo) { 
-                    resItem.innerHTML = `<span style="color:red;">⚠️ 已售給 ${d.soldTo}</span>`; 
-                    document.getElementById('btn-pay-exec').disabled = true;
-                } else { 
-                    resItem.innerText = d.name; 
-                    resCost.innerText = "$" + d.cost; 
-                    currentCost = parseFloat(d.cost); 
-                    document.getElementById('btn-pay-exec').disabled = false; 
-                }
-            } else { 
-                resItem.innerText = "❌ 無此庫存"; 
-                document.getElementById('btn-pay-exec').disabled = true; 
-            }
-            calculateProfit();
-        });
-    };
-
-    window.calculateProfit = () => {
-        const price = parseFloat(document.getElementById('sale-price').value) || 0;
-        const method = document.getElementById('pay-method').value;
-        const hasFee = ["刷卡", "LP", "分期", "無卡分期", "行動支付"].some(f => method.includes(f));
-        let fee = hasFee ? price * 0.02 : 0;
-        document.getElementById('fee-notice').innerText = fee > 0 ? "💡 扣手續費: $" + Math.round(fee) : "✅ 免手續費";
-        document.getElementById('res-profit').innerText = "$" + Math.round(price - currentCost - fee).toLocaleString();
-    };
-
-    window.executeCheckout = () => {
-        const btn = document.getElementById('btn-pay-exec');
-        btn.disabled = true; btn.innerText = "🚀 同步中...";
-        fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "checkout", date: new Date().toLocaleDateString('zh-TW'),
-                payMethod: document.getElementById('pay-method').value,
-                incomeType: document.getElementById('income-type').value,
-                consumerName: document.getElementById('sale-buyer').value + " - " + document.getElementById('res-item').innerText,
-                price: document.getElementById('sale-price').value, cost: currentCost, sn: document.getElementById('sale-scan').value,
-                extraNote: document.getElementById('sale-note-extra').value, staff: document.getElementById('staff-select').value
-            })
-        }).then(res => res.text()).then(text => { alert(text); location.reload(); });
-    };
-
-    window.searchCustomer = () => {
-        const name = document.getElementById('query-name').value;
-        if (!name) return;
-        document.getElementById('query-results').innerHTML = '<p style="text-align: center;">🔍 查詢中...</p>';
-        fetch(GOOGLE_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "queryCustomer", name: name }) })
-        .then(res => res.json()).then(data => {
-            if (!data || data.length === 0) { document.getElementById('query-results').innerHTML = '<p style="text-align: center; color: red;">找不到紀錄</p>'; return; }
-            let h = '<table><thead><tr><th>日期</th><th>客戶/品項</th><th>金額</th></tr></thead><tbody>';
-            data.forEach(r => h += `<tr><td>${r.date}<br><small>${r.year}</small></td><td><b>${r.name}</b></td><td>$${Number(r.price).toLocaleString()}</td></tr>`);
-            document.getElementById('query-results').innerHTML = h + '</tbody></table>';
-        });
-    };
-</script>
-</body>
-</html>
+        }).then(res => res.text()).then(msg => { alert(msg
