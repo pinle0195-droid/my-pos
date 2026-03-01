@@ -3,119 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>品樂通訊 POS 系統 - 2026 正式版</title>
+    <title>品樂 POS 2026 優化版</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        :root { 
-            --pinle-green: #2ecc71; 
-            --pinle-blue: #3498db; 
-            --pinle-orange: #e67e22;
-            --bg-gray: #f4f7f6; 
-        }
-        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; color: #333; }
+        :root { --pinle-green: #2ecc71; --pinle-blue: #3498db; --pinle-orange: #e67e22; --bg-gray: #f4f7f6; }
+        body { font-family: 'PingFang TC', sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; }
         .container { max-width: 1100px; margin: 0 auto; }
-        h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; }
-        
-        #reminder-bar { 
-            display:none; background:#fff3cd; color:#856404; padding:15px; 
-            text-align:center; font-weight:bold; border:1px solid #ffeeba; 
-            border-radius:12px; margin-bottom:20px; 
-        }
-
-        .main-flex { display: flex; gap: 20px; align-items: flex-start; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex: 1; }
-        .card-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; padding-left: 10px; border-left: 5px solid var(--pinle-green); }
-        
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 5px; color: #4a5568; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        
-        .result-box { background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px dashed #cbd5e0; margin-bottom: 15px; }
-        .result-line { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .profit-value { color: var(--pinle-orange); font-weight: 800; font-size: 1.1rem; }
-
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; color: white; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-left: 5px solid var(--pinle-green); padding-left: 10px; }
+        .main-flex { display: flex; gap: 15px; flex-wrap: wrap; }
+        .flex-left { flex: 1.5; min-width: 350px; }
+        .flex-right { flex: 1; min-width: 300px; }
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        .result-box { background: #fdfdfd; padding: 12px; border: 1px dashed #ccc; border-radius: 8px; margin-bottom: 12px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; font-size: 16px; }
         .btn-pay { background: var(--pinle-green); }
-        .btn-pay:disabled { background: #cbd5e0; cursor: not-allowed; }
-        .btn-order { background: var(--pinle-orange); }
-        .btn-query { background: var(--pinle-blue); }
-
-        .scroll-area { max-height: 350px; overflow-y: auto; margin-top: 15px; border: 1px solid #edf2f7; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th { background: #f7fafc; padding: 12px; text-align: left; position: sticky; top: 0; }
-        td { padding: 12px; border-bottom: 1px solid #edf2f7; }
-
-        @media (max-width: 850px) { .main-flex { flex-direction: column; } }
+        .btn-pay:disabled { background: #ccc; }
+        #reminder-bar { display:none; background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; font-weight:bold; }
+        .loading-text { color: #3498db; font-size: 0.8rem; }
     </style>
 </head>
 <body onload="initSystem()">
 
 <div class="container">
-    <h2>品樂通訊小幫手 2026</h2>
-    <div id="reminder-bar">📅 明日取貨提醒：<span id="reminder-text"></span></div>
-
+    <div id="reminder-bar">📅 明日取貨：<span id="reminder-text"></span></div>
+    
     <div class="main-flex">
-        <div class="card">
-            <div class="card-title">💰 快速結帳</div>
-            <div class="input-group">
-                <label>掃描序號 / SN</label>
-                <input type="text" id="sale-sn" placeholder="請掃描序號..." oninput="fetchStockData()">
+        <div class="flex-left">
+            <div class="card">
+                <div class="card-title">💰 快速結帳</div>
+                <div class="input-group">
+                    <label>掃描序號 / SN <span id="scan-status" class="loading-text"></span></label>
+                    <input type="text" id="sale-sn" placeholder="輸入序號後自動查詢..." oninput="debounceSearch()">
+                </div>
+                <div class="result-box">
+                    <div style="display:flex; justify-content:space-between"><span>品名:</span><b id="res-name">等待輸入...</b></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;"><span>成本:</span><span id="res-cost">$0</span></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; color:var(--pinle-orange); font-weight:bold;">
+                        <span>預估毛利:</span><span id="res-profit">$0</span>
+                    </div>
+                </div>
+                <div class="input-group"><label>客戶姓名</label><input type="text" id="cust-name"></div>
+                <div class="input-group"><label>售價</label><input type="number" id="sale-price" oninput="uiCalculate()"></div>
+                <div class="input-group">
+                    <label>支付方式</label>
+                    <select id="pay-method" onchange="uiCalculate()">
+                        <option value="現金">現金</option><option value="匯款">匯款</option>
+                        <option value="刷卡">刷卡 (2%)</option><option value="LP">LP (2%)</option>
+                        <option value="無卡分期">無卡分期 (2%)</option>
+                    </select>
+                </div>
+                <div class="input-group"><label>收入類別</label><select id="income-type"></select></div>
+                <div class="input-group"><label>經手人</label><select id="staff"><option>坤霖</option><option>思璇</option><option>嘉尹</option></select></div>
+                <button id="btn-checkout" class="btn btn-pay" onclick="submitCheckout()">確認結帳</button>
             </div>
-
-            <div class="result-box">
-                <div class="result-line"><span>品名：</span><span id="res-name" style="font-weight:bold;">等待輸入</span></div>
-                <div class="result-line"><span>進貨成本：</span><span id="res-cost">$0</span></div>
-                <div class="result-line"><span>預估毛利：</span><span id="res-profit" class="profit-value">$0</span></div>
-                <small id="fee-note" style="color:#718096;">(免手續費方式)</small>
-            </div>
-
-            <div class="input-group"><label>購買人姓名</label><input type="text" id="cust-name" placeholder="客戶名稱"></div>
-            <div class="input-group"><label>成交售價</label><input type="number" id="sale-price" placeholder="輸入售價" oninput="uiCalculate()"></div>
-            <div class="input-group">
-                <label>支付方式</label>
-                <select id="pay-method" onchange="uiCalculate()">
-                    <option value="現金">現金</option>
-                    <option value="匯款">匯款</option>
-                    <option value="iPass Money">iPass Money</option>
-                    <option value="刷卡">刷卡 (2%)</option>
-                    <option value="LP">LP (2%)</option>
-                    <option value="分期">分期 (2%)</option>
-                    <option value="無卡分期">無卡分期 (2%)</option>
-                    <option value="行動支付">行動支付 (2%)</option>
-                </select>
-            </div>
-            <div class="input-group"><label>收入類別</label><select id="income-type"><option value="載入中...">載入中...</option></select></div>
-            <div class="input-group"><label>承辦人</label><select id="staff"><option value="坤霖">坤霖</option><option value="思璇">思璇</option><option value="嘉尹">嘉尹</option></select></div>
-            <div class="input-group"><label>備註 (加贈/其他)</label><input type="text" id="sale-note" placeholder="例如：送保護貼"></div>
-            
-            <button id="btn-checkout" class="btn btn-pay" onclick="submitCheckout()">確認結帳並同步 Excel</button>
         </div>
 
-        <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+        <div class="flex-right">
             <div class="card">
-                <div class="card-title" style="border-left-color: var(--pinle-orange);">📦 商品客訂</div>
-                <div style="display: flex; gap: 10px;">
-                    <div class="input-group" style="flex:1;"><label>客戶</label><input type="text" id="ord-name"></div>
-                    <div class="input-group" style="flex:2;"><label>品名</label><input type="text" id="ord-product"></div>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <div class="input-group" style="flex:1;"><label>訂單日期</label><input type="date" id="ord-date"></div>
-                    <div class="input-group" style="flex:1;"><label>預計取貨</label><input type="date" id="ord-pickup"></div>
-                </div>
-                <div class="input-group"><label>備註</label><input type="text" id="ord-note"></div>
-                <button class="btn btn-order" onclick="submitOrder()">儲存客訂並通知 LINE</button>
+                <div class="card-title" style="border-color:var(--pinle-orange)">📦 商品客訂</div>
+                <input type="text" id="ord-name" placeholder="客戶姓名" style="margin-bottom:10px;">
+                <input type="text" id="ord-product" placeholder="產品名稱" style="margin-bottom:10px;">
+                <label>預計取貨</label>
+                <input type="date" id="ord-pickup" style="margin-bottom:10px;">
+                <button class="btn" style="background:var(--pinle-orange)" onclick="submitOrder()">儲存並通知 LINE</button>
             </div>
-
+            
             <div class="card">
-                <div class="card-title" style="border-left-color: var(--pinle-blue);">🔍 歷史查詢</div>
-                <div class="input-group">
-                    <input type="text" id="query-input" placeholder="輸入客戶姓名搜尋...">
-                </div>
-                <button class="btn btn-query" onclick="queryCustomer()">搜尋歷年消費紀錄</button>
-                <div id="query-results" class="scroll-area">
-                    <p style="text-align:center; color:#a0aec0; margin-top:20px;">請輸入姓名搜尋</p>
-                </div>
+                <div class="card-title" style="border-color:var(--pinle-blue)">🔍 歷史查詢</div>
+                <input type="text" id="query-input" placeholder="客戶姓名..." style="margin-bottom:10px;">
+                <button class="btn" style="background:var(--pinle-blue)" onclick="queryCustomer()">搜尋紀錄</button>
+                <div id="query-results" style="margin-top:10px; font-size:0.85rem; max-height:200px; overflow:auto;"></div>
             </div>
         </div>
     </div>
@@ -124,107 +85,66 @@
 <script>
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbw6PZqyrRqHscFdZHNTsKnVdpMl3Y7_oKDAEVlkHP6fLq885htw0HRe0HImSU7DU1xhww/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
-    
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    
     let currentCost = 0;
-    let searchTimer; // ★ 用於優化搜尋頻率的計時器
+    let timer;
 
     function initSystem() {
-        document.getElementById('ord-date').valueAsDate = new Date();
         fetchParams();
         checkReminders();
     }
 
-    function fetchParams() {
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
-        .then(res => res.json()).then(data => {
-            const select = document.getElementById('income-type');
-            if(data.incomeList) {
-                select.innerHTML = data.incomeList.map(v => `<option value="${v}">${v}</option>`).join('');
-            }
-        });
+    // 防抖搜尋：停止輸入 400ms 後才啟動
+    function debounceSearch() {
+        clearTimeout(timer);
+        document.getElementById('scan-status').innerText = "⏳ 輸入中...";
+        timer = setTimeout(fetchStockData, 400);
     }
 
-    function checkReminders() {
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getReminders" }) })
-        .then(res => res.json()).then(list => {
-            if (list && list.length > 0) {
-                document.getElementById('reminder-bar').style.display = 'block';
-                document.getElementById('reminder-text').innerText = list.map(i => `${i.name}(${i.product})`).join('、');
-            }
-        });
-    }
-
-    // ★ 優化後的搜尋邏輯：只有停止輸入 0.5 秒後才會真正去查資料
     function fetchStockData() {
         const sn = document.getElementById('sale-sn').value.trim();
-        const resName = document.getElementById('res-name');
-        const resCost = document.getElementById('res-cost');
+        if (sn.length < 5) return;
+        document.getElementById('scan-status').innerText = "🔍 查詢中...";
+
+        // 優先 Firebase
+        db.ref('inventory/' + sn).once('value').then(snap => {
+            if (snap.exists()) {
+                handleStockResult(snap.val().soldTo ? {error: "已售給 " + snap.val().soldTo} : {productName: snap.val().name, cost: snap.val().cost});
+            } else {
+                // 轉向 Excel
+                fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
+                .then(res => res.json()).then(handleStockResult);
+            }
+        });
+    }
+
+    function handleStockResult(data) {
         const btn = document.getElementById('btn-checkout');
-
-        if (sn.length < 5) {
-            resName.innerText = "等待輸入...";
-            resCost.innerText = "$0";
-            return;
+        document.getElementById('scan-status').innerText = "";
+        if (data && !data.error) {
+            document.getElementById('res-name').innerText = data.productName;
+            document.getElementById('res-cost').innerText = "$" + data.cost;
+            currentCost = parseFloat(data.cost);
+            btn.disabled = false;
+        } else {
+            document.getElementById('res-name').innerHTML = `<span style="color:red">${data.error || "查無序號"}</span>`;
+            btn.disabled = true;
         }
-
-        clearTimeout(searchTimer);
-
-        searchTimer = setTimeout(() => {
-            resName.innerText = "🔍 正在查詢庫存...";
-            
-            db.ref('inventory/' + sn).once('value').then(snap => {
-                if (snap.exists()) {
-                    const d = snap.val();
-                    if (d.soldTo) {
-                        resName.innerHTML = `<span style="color:red;">⚠️ 已售給 ${d.soldTo}</span>`;
-                        btn.disabled = true;
-                    } else {
-                        resName.innerText = d.name;
-                        resCost.innerText = "$" + d.cost;
-                        currentCost = parseFloat(d.cost);
-                        btn.disabled = false;
-                    }
-                    uiCalculate();
-                } else {
-                    fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
-                    .then(res => res.json()).then(data => {
-                        if (data && !data.error) {
-                            resName.innerText = data.productName;
-                            resCost.innerText = "$" + data.cost;
-                            currentCost = parseFloat(data.cost);
-                            btn.disabled = false;
-                        } else {
-                            resName.innerText = "❌ 查無序號";
-                            btn.disabled = true;
-                        }
-                        uiCalculate();
-                    });
-                }
-            });
-        }, 500); 
+        uiCalculate();
     }
 
     function uiCalculate() {
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const method = document.getElementById('pay-method').value;
-        const isFee = !(["現金", "匯款", "iPass Money"].includes(method));
-        const fee = isFee ? Math.round(price * 0.02) : 0;
-        const profit = Math.round(price - currentCost - fee);
-
-        document.getElementById('fee-note').innerText = isFee ? `💡 扣 2% 手續費: $${fee}` : "✅ 免手續費方式";
-        document.getElementById('res-profit').innerText = "$" + profit.toLocaleString();
+        const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
+        document.getElementById('res-profit').innerText = "$" + (price - currentCost - fee).toLocaleString();
     }
 
     function submitCheckout() {
-        const sn = document.getElementById('sale-sn').value;
-        if(!sn) return alert("請先輸入/掃描序號");
-        
         const btn = document.getElementById('btn-checkout');
-        btn.disabled = true;
-        btn.innerText = "同步至 Excel 中...";
-
+        btn.disabled = true; btn.innerText = "寫入中...";
         const payload = {
             action: "checkout",
             date: new Date().toLocaleDateString('zh-TW'),
@@ -233,56 +153,49 @@
             consumerName: document.getElementById('cust-name').value + " - " + document.getElementById('res-name').innerText,
             price: document.getElementById('sale-price').value,
             cost: currentCost,
-            sn: sn,
-            extraNote: document.getElementById('sale-note').value,
+            sn: document.getElementById('sale-sn').value,
             staff: document.getElementById('staff').value
         };
-
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
-        .then(res => res.text()).then(msg => {
-            alert(msg);
-            location.reload();
+        .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
+    }
+
+    function fetchParams() {
+        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
+        .then(res => res.json()).then(data => {
+            document.getElementById('income-type').innerHTML = data.incomeList.map(v => `<option value="${v}">${v}</option>`).join('');
+        });
+    }
+
+    function checkReminders() {
+        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getReminders" }) })
+        .then(res => res.json()).then(list => {
+            if (list.length > 0) {
+                document.getElementById('reminder-bar').style.display = 'block';
+                document.getElementById('reminder-text').innerText = list.map(i => i.name).join('、');
+            }
         });
     }
 
     function submitOrder() {
-        const name = document.getElementById('ord-name').value;
-        const product = document.getElementById('ord-product').value;
-        const pickup = document.getElementById('ord-pickup').value;
-        if(!name || !product || !pickup) return alert("請填寫姓名、品名與取貨日期");
-
         const payload = {
             action: "saveOrder",
-            name: name,
-            product: product,
-            orderTime: document.getElementById('ord-date').value,
-            pickupTime: pickup,
-            note: document.getElementById('ord-note').value
+            name: document.getElementById('ord-name').value,
+            product: document.getElementById('ord-product').value,
+            orderTime: new Date().toLocaleDateString('zh-TW'),
+            pickupTime: document.getElementById('ord-pickup').value
         };
-
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
-        .then(res => res.text()).then(msg => {
-            alert(msg);
-            location.reload();
-        });
+        .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
     }
 
     function queryCustomer() {
         const name = document.getElementById('query-input').value;
-        if (!name) return;
-        document.getElementById('query-results').innerHTML = '<p style="text-align:center;">🔍 搜尋中...</p>';
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryCustomer", name: name }) })
         .then(res => res.json()).then(data => {
-            if (!data || data.length === 0) {
-                document.getElementById('query-results').innerHTML = '<p style="text-align:center; color:red;">找不到紀錄</p>';
-                return;
-            }
-            let html = '<table><thead><tr><th>日期</th><th>品項</th><th>金額</th></tr></thead><tbody>';
-            data.forEach(r => {
-                html += `<tr><td>${r.date}<br><small>${r.year}</small></td><td>${r.name}</td><td>$${Number(r.price).toLocaleString()}</td></tr>`;
-            });
-            html += '</tbody></table>';
-            document.getElementById('query-results').innerHTML = html;
+            let html = data.length ? '<table style="width:100%"><tr><th>日期</th><th>品項</th></tr>' : '無紀錄';
+            data.forEach(r => html += `<tr><td>${r.date}</td><td>${r.name}</td></tr>`);
+            document.getElementById('query-results').innerHTML = html + (data.length ? '</table>' : '');
         });
     }
 </script>
