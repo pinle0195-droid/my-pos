@@ -69,6 +69,7 @@
                 <input type="text" id="ord-product" placeholder="產品名稱" style="margin-bottom:10px;">
                 <label>預計取貨</label>
                 <input type="date" id="ord-pickup" style="margin-bottom:10px;">
+                <input type="text" id="ord-note" placeholder="客訂備註 (選填)" style="margin-bottom:10px;">
                 <button class="btn" style="background:var(--pinle-orange)" onclick="submitOrder()">儲存並通知 LINE</button>
             </div>
             
@@ -96,7 +97,6 @@
         checkReminders();
     }
 
-    // 防抖搜尋：停止輸入 400ms 後才啟動
     function debounceSearch() {
         clearTimeout(timer);
         document.getElementById('scan-status').innerText = "⏳ 輸入中...";
@@ -108,12 +108,10 @@
         if (sn.length < 5) return;
         document.getElementById('scan-status').innerText = "🔍 查詢中...";
 
-        // 優先 Firebase
         db.ref('inventory/' + sn).once('value').then(snap => {
             if (snap.exists()) {
                 handleStockResult(snap.val().soldTo ? {error: "已售給 " + snap.val().soldTo} : {productName: snap.val().name, cost: snap.val().cost});
             } else {
-                // 轉向 Excel
                 fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
                 .then(res => res.json()).then(handleStockResult);
             }
@@ -183,7 +181,8 @@
             name: document.getElementById('ord-name').value,
             product: document.getElementById('ord-product').value,
             orderTime: new Date().toLocaleDateString('zh-TW'),
-            pickupTime: document.getElementById('ord-pickup').value
+            pickupTime: document.getElementById('ord-pickup').value,
+            note: document.getElementById('ord-note').value // ★把備註欄位加入打包資料中
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
