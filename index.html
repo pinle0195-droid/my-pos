@@ -146,8 +146,7 @@
 </div>
 
 <script>
-    // ⚠️ 確保這裡是您重新部署後的最新 GAS 網址
-    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbyjg2_V9QLotEYTwWrt5wvabxC713ms4zHbrlz2oDbqpVTjhrxYT8mbiA9UOmTKDcIn9w/exec"; 
+    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzrnJ2Lgc0Mnrf7jYSJoZsU9dBWOhY1sM3uJTQ_txLPtBunM5mzoilPFEulH3nV-mAhRw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -246,6 +245,7 @@
             } else {
                 subNote.style.display = "none";
             }
+            // 💡 修正：只要門號區域是開啟的，直接調用反查判定，不再封鎖特定字眼
             autoQueryProject(); 
         } else {
             section.style.display = "none";
@@ -256,24 +256,28 @@
         uiCalculate();
     }
 
-    // 💡 終極除錯：解決連線異常、無感防白，並加入 250 毫秒安全選單渲染延時
+    // 💡 終極除錯核心：拔除 type 欄位過濾器，點選任何门号相關類別填入門號時，均能自動反查上次專案！
     function autoQueryProject() {
-        const type = document.getElementById('income-type').value;
-        if (type.indexOf("保留") !== -1) return; // 保留當天不反查
-
         const phone = document.getElementById('telecom-phone-number').value.trim();
         const statusSpan = document.getElementById('phone-search-status');
         
+        // 台灣手機號碼輸入滿 10 碼即自動執行反查調閱
         if (phone.length === 10) {
             statusSpan.innerText = " 🔍 正在極速反查歷史專案...";
             
             fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryProjectByPhone", phone: phone }) })
-            .then(res => res.json()) // 後端已打包 try-catch 100% 回傳標準 JSON
+            .then(res => {
+                // 安全防護網：確保後端丟回的是標準文字而非錯誤的 HTML
+                return res.text().then(text => {
+                    try { return JSON.parse(text); } 
+                    catch(e) { return { success: false, msg: "解析異常" }; }
+                });
+            })
             .then(resData => {
                 if (resData && resData.success) {
-                    statusSpan.innerText = " ⚡ 方案提取成功！正在佈署選單...";
+                    statusSpan.innerText = " ⚡ 方案查獲！正在佈署選單...";
                     
-                    // 1. 勾選第一級：電信公司
+                    // 1. 精準對齊第一級選單：電信公司
                     const compSelect = document.getElementById('tel-company');
                     let targetTelecom = resData.telecom || "";
                     for (let i = 0; i < compSelect.options.length; i++) {
@@ -282,9 +286,9 @@
                             break;
                         }
                     }
-                    onTelecomChange(); 
+                    onTelecomChange(); // 手動驅動生出第二級選項
                     
-                    // 2. ⚡ 安全延遲 250ms 等待第二級專案類別
+                    // 2. ⚡ 安全緩衝延遲 250ms，給瀏覽器充足時間將 Option 標籤渲染完畢，再勾選第二級
                     setTimeout(() => {
                         const typeSelect = document.getElementById('tel-type');
                         let targetType = resData.type || "";
@@ -294,9 +298,9 @@
                                 break;
                             }
                         }
-                        onTypeChange(); 
+                        onTypeChange(); // 手動驅動生出第三級選項
                         
-                        // 3. ⚡ 再安全延遲 250ms 等待第三級資費方案
+                        // 3. ⚡ 再安全緩衝延遲 250ms，完全就位後勾選第三級並結算佣金
                         setTimeout(() => {
                             const rateSelect = document.getElementById('tel-rate');
                             let targetRate = resData.rate || "";
@@ -307,18 +311,17 @@
                                 }
                             }
                             
-                            // 🚀 核心收尾：觸發佣金及利潤運算
+                            // 🚀 核心收尾：主動發射費率更新，自動帶出當時的佣金
                             onRateChange(); 
-                            statusSpan.innerText = " ✅ 方案細節與扣佣金額已完美帶出！";
+                            statusSpan.innerText = " ✅ 專案方案與佣金已完美帶出！";
                         }, 250);
 
                     }, 250);
                     
                 } else {
-                    // 如果以前的資料 O 欄是空白的，程式不當機，友善通知您
-                    statusSpan.innerText = " 💡 找到辦理紀錄，但當時無選填詳細方案(O欄空白)，請手動補選專案";
+                    statusSpan.innerText = " ❌ 查無此號碼的歷史保留合約明細";
                 }
-            }).catch(() => { statusSpan.innerText = " ❌ 反查發生未預期異常，請手動勾選專案"; });
+            }).catch(() => { statusSpan.innerText = " ❌ 連線異常，請手動下拉勾選專案"; });
         } else {
             statusSpan.innerText = "";
         }
@@ -395,7 +398,7 @@
         else if (type.indexOf("保留") === -1 && (type.indexOf("領") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("購機") !== -1)) {
             if (currentCommission === 0) {
                 globalFinalProfit = price - currentCost - fee;
-                if (globalFinalProfit < 0) globalFinalProfit = 0;
+                if (globalFinalProfit < 0) globalFinalProfit = 0; 
             } else {
                 const adjustedCommission = currentCommission - 2000;
                 globalFinalProfit = price + adjustedCommission - currentCost - fee;
