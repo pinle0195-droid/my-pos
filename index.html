@@ -90,8 +90,8 @@
                     <div style="font-weight:bold; font-size:0.9rem; color:#2c3e50; margin-bottom:10px;">📞 門號專案細節</div>
                     
                     <div class="input-group" style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e0; margin-bottom: 12px;">
-                        <label style="color: #4a5568;">📱 客戶【續約/申辦的電話號碼】</label>
-                        <input type="tel" id="telecom-phone-number" placeholder="例如：0912345678">
+                        <label style="color: #4a5568;">📱 客戶【續約/申辦的電話號碼】 <span id="phone-search-status" style="color:#3498db; font-size:0.8rem;"></span></label>
+                        <input type="tel" id="telecom-phone-number" placeholder="例如：0912345678" oninput="autoQueryProject()">
                     </div>
 
                     <div class="input-group">
@@ -146,7 +146,8 @@
 </div>
 
 <script>
-    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbxIz4CW3-yaS4FwCi19AaPzgXwoGe9YNsrfvdTDOSvQDb1pJz2CI91fw4bfrCYrmQFBFQ/exec"; 
+    // ⚠️ 記得替換成最新的 GS 部署網址（由後台更新後產生）
+    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzrnJ2Lgc0Mnrf7jYSJoZsU9dBWOhY1sM3uJTQ_txLPtBunM5mzoilPFEulH3nV-mAhRw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -242,6 +243,7 @@
 
             if (type.indexOf("領購") !== -1) {
                 subNote.style.display = "inline";
+                autoQueryProject(); // 💡 切換到領購機優惠時，如果電話已經填好了，直接觸發反查
             } else {
                 subNote.style.display = "none";
             }
@@ -254,6 +256,48 @@
         uiCalculate();
     }
 
+    // 💡 新增：自動往流水帳反查上次申辦的方案細節並秒選
+    function autoQueryProject() {
+        const type = document.getElementById('income-type').value;
+        // 只有當選取「領購機優惠」相關類別時，才觸發自動帶出功能
+        if (type.indexOf("領購") === -1) return;
+
+        const phone = document.getElementById('telecom-phone-number').value.trim();
+        const statusSpan = document.getElementById('phone-search-status');
+        
+        // 台灣手機號碼通常為 10 碼，輸入滿 10 碼自動查詢
+        if (phone.length === 10) {
+            statusSpan.innerText = " 🔍 正在調閱歷史專案...";
+            fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryProjectByPhone", phone: phone }) })
+            .then(res => res.json())
+            .then(resData => {
+                if (resData.success) {
+                    statusSpan.innerText = " ✅ 已尋獲並自動帶出方案！";
+                    
+                    // 1. 自動勾選電信公司
+                    const compSelect = document.getElementById('tel-company');
+                    compSelect.value = resData.telecom;
+                    onTelecomChange(); // 驅動第二級
+                    
+                    // 2. 自動勾選專案類別
+                    const typeSelect = document.getElementById('tel-type');
+                    typeSelect.value = resData.type;
+                    onTypeChange(); // 驅動第三級
+                    
+                    // 3. 自動勾選資費
+                    const rateSelect = document.getElementById('tel-rate');
+                    rateSelect.value = resData.rate;
+                    onRateChange(); // 結算佣金
+                    
+                } else {
+                    statusSpan.innerText = " ❌ 流水帳查無此號碼的專案細節";
+                }
+            }).catch(() => { statusSpan.innerText = ""; });
+        } else {
+            statusSpan.innerText = "";
+        }
+    }
+
     function resetTelecomSelection() {
         currentCommission = 0;
         document.getElementById('telecom-phone-number').value = "";
@@ -261,6 +305,7 @@
         document.getElementById('tel-company').selectedIndex = 0;
         document.getElementById('tel-type').innerHTML = '<option value="">-- 請選擇專案 --</option>';
         document.getElementById('tel-rate').innerHTML = '<option value="">-- 請選擇資費 --</option>';
+        document.getElementById('phone-search-status').innerText = "";
         uiCalculate();
     }
 
@@ -312,7 +357,6 @@
         uiCalculate();
     }
 
-    // 💡 錯誤2修正：只要收入類別含有「保留」二字，無論組合多複雜，強制定死為 2,000 元！
     function uiCalculate() {
         const type = document.getElementById('income-type').value;
         const method = document.getElementById('pay-method').value;
@@ -343,7 +387,7 @@
         const type = document.getElementById('income-type').value;
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         let phoneNumber = ""; 
-        let telecomProjectString = ""; // 💡 獨立拉出：專案電信與資費字串
+        let telecomProjectString = ""; 
         
         if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1) {
             phoneNumber = document.getElementById('telecom-phone-number').value.trim(); 
@@ -352,7 +396,6 @@
             const r = document.getElementById('tel-rate').value;
             
             if(com && t && r) {
-                // 💡 錯誤1修正：將方案資訊封裝成乾淨格式，交給後端填入 O 欄
                 telecomProjectString = `${com}/${t}/${r}`;
             }
         }
@@ -367,10 +410,10 @@
             cost: currentCost,
             sn: document.getElementById('sale-sn').value,
             staff: document.getElementById('staff').value,
-            extraNote: "", // 清空 H 欄混雜，維持乾淨
+            extraNote: "", 
             calculatedProfit: globalFinalProfit,
             telecomPhone: phoneNumber, 
-            telecomProjectInfo: telecomProjectString // 🚀 新增參數：方案對應 O 欄
+            telecomProjectInfo: telecomProjectString 
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
@@ -387,7 +430,6 @@
         });
     }
 
-    // (其餘客訂、查詢功能完整保留，不作改動)
     function checkReminders() {
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getReminders" }) })
         .then(res => res.json()).then(list => {
