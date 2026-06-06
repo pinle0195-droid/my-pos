@@ -230,19 +230,16 @@
         const priceLabel = document.getElementById('price-label');
         const subNote = document.getElementById('sub-comm-note');
         
-        // 判斷是否為門號或購機、保留相關業務
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1) {
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1) {
             section.style.display = "block";
             buildTelecomCompanies();
             
-            // 欄位動態改名
             if (type.indexOf("保留") !== -1 || type.indexOf("領購") !== -1) {
                 priceLabel.innerText = "💰 商品專案價";
             } else {
                 priceLabel.innerText = "售價 / 專案金額";
             }
 
-            // 二階段扣佣提示
             if (type.indexOf("領購") !== -1) {
                 subNote.style.display = "inline";
             } else {
@@ -315,28 +312,23 @@
         uiCalculate();
     }
 
-    // 💡 核心升級：精準對接二階段「購機保留」與「領取購機優惠」的利潤公式
+    // 💡 錯誤2修正：只要收入類別含有「保留」二字，無論組合多複雜，強制定死為 2,000 元！
     function uiCalculate() {
         const type = document.getElementById('income-type').value;
         const method = document.getElementById('pay-method').value;
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
         
-        // ✨ 階段 1：當收入類別精準選到「門號購機保留」時，強制定死利潤為 $2,000 元！
-        if (type.indexOf("門號購機保留") !== -1) {
+        if (type.indexOf("保留") !== -1) {
             globalFinalProfit = 2000;
         } 
-        // ✨ 階段 2：當日後領取時（例如名稱叫 領取購機、領購機優惠 等包含「領購」的項目）
-        // 公式：商品專案價 + (當時佣金 - 2000) - 商品成本 - 手續費
         else if (type.indexOf("領購") !== -1) {
             const adjustedCommission = currentCommission - 2000;
             globalFinalProfit = price + adjustedCommission - currentCost - fee;
         }
-        // 普通的門號/申辦業務：售價 + 佣金 - 商品成本 - 手續費
         else if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("續約") !== -1) {
             globalFinalProfit = price + currentCommission - currentCost - fee;
         } 
-        // 一般零售商品：售價 - 商品成本 - 手續費
         else {
             globalFinalProfit = price - currentCost - fee;
         }
@@ -350,18 +342,18 @@
         
         const type = document.getElementById('income-type').value;
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
-        let finalNote = "";
         let phoneNumber = ""; 
+        let telecomProjectString = ""; // 💡 獨立拉出：專案電信與資費字串
         
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1) {
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1) {
             phoneNumber = document.getElementById('telecom-phone-number').value.trim(); 
             const com = document.getElementById('tel-company').value;
             const t = document.getElementById('tel-type').value;
             const r = document.getElementById('tel-rate').value;
+            
             if(com && t && r) {
-                // 自動在備註中寫下專案細節與扣佣說明，方便日後在流水帳對帳
-                const commText = type.indexOf("領購") !== -1 ? `已扣2000實補:${currentCommission - 2000}` : `退佣:${currentCommission}`;
-                finalNote = ` [門號方案: ${com}/${t}/${r} (${commText})]`;
+                // 💡 錯誤1修正：將方案資訊封裝成乾淨格式，交給後端填入 O 欄
+                telecomProjectString = `${com}/${t}/${r}`;
             }
         }
 
@@ -375,9 +367,10 @@
             cost: currentCost,
             sn: document.getElementById('sale-sn').value,
             staff: document.getElementById('staff').value,
-            extraNote: finalNote, 
+            extraNote: "", // 清空 H 欄混雜，維持乾淨
             calculatedProfit: globalFinalProfit,
-            telecomPhone: phoneNumber 
+            telecomPhone: phoneNumber, 
+            telecomProjectInfo: telecomProjectString // 🚀 新增參數：方案對應 O 欄
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
@@ -394,6 +387,7 @@
         });
     }
 
+    // (其餘客訂、查詢功能完整保留，不作改動)
     function checkReminders() {
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getReminders" }) })
         .then(res => res.json()).then(list => {
@@ -406,12 +400,8 @@
 
     function submitOrder() {
         const payload = {
-            action: "saveOrder",
-            name: document.getElementById('ord-name').value,
-            product: document.getElementById('ord-product').value,
-            orderTime: new Date().toLocaleDateString('zh-TW'),
-            pickupTime: document.getElementById('ord-pickup').value,
-            note: document.getElementById('ord-note').value
+            action: "saveOrder", name: document.getElementById('ord-name').value, product: document.getElementById('ord-product').value,
+            orderTime: new Date().toLocaleDateString('zh-TW'), pickupTime: document.getElementById('ord-pickup').value, note: document.getElementById('ord-note').value
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
