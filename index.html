@@ -146,8 +146,8 @@
 </div>
 
 <script>
-    // 💡 確保對齊最新 GAS 的 API 位置
-    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzrnJ2Lgc0Mnrf7jYSJoZsU9dBWOhY1sM3uJTQ_txLPtBunM5mzoilPFEulH3nV-mAhRw/exec"; 
+    // ⚠️ 請確保此處為您重新部署後的最新 GAS 網址
+    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbyz-7cGUm0Nu2PXmtr6rBNXL6Zm8MXuQBIKt7GMh52VTlZmLFVLqMzV5kd_Nnb7XcXPtw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -256,8 +256,12 @@
         uiCalculate();
     }
 
-    // 💡 核心優化：採用超寬鬆模糊比對器，徹底粉碎「未預期回應」，並保證選單順暢渲染
+    // 💡 智能除錯：放寬限制、無感防白，加入 250 毫秒極限渲染時差等待，保證順利挑選三級方案
     function autoQueryProject() {
+        const type = document.getElementById('income-type').value;
+        // 只有在非保留（即領取購機優惠階段）才觸發反查
+        if (type.indexOf("保留") !== -1) return;
+
         const phone = document.getElementById('telecom-phone-number').value.trim();
         const statusSpan = document.getElementById('phone-search-status');
         
@@ -265,16 +269,10 @@
             statusSpan.innerText = " 🔍 正在極速反查歷史專案...";
             
             fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryProjectByPhone", phone: phone }) })
-            .then(res => {
-                // 防崩潰保護：確保回傳的是標準文字而非 Google 報錯頁面
-                return res.text().then(text => {
-                    try { return JSON.parse(text); } 
-                    catch(e) { return { success: false, msg: "後台解析異常" }; }
-                });
-            })
+            .then(res => res.json()) // 後台已加 try-catch 保護，此處不再回傳 HTML 網頁
             .then(resData => {
                 if (resData && resData.success) {
-                    statusSpan.innerText = " ⚡ 方案查獲！正在智能解鎖對齊選單...";
+                    statusSpan.innerText = " ⚡ 方案提取成功！正在佈署選單...";
                     
                     // 1. 智慧匹配第一級：電信公司
                     const compSelect = document.getElementById('tel-company');
@@ -285,21 +283,23 @@
                             break;
                         }
                     }
-                    onTelecomChange(); 
+                    onTelecomChange(); // 同步產生第二級清單
                     
-                    // 2. ⚡ 安全延遲，智慧比對第二級：專案類別
+                    // 2. ⚡ 給予 250 毫秒充足時差，等待瀏覽器完成 DOM 渲染後選取第二級：專案類別
                     setTimeout(() => {
                         const typeSelect = document.getElementById('tel-type');
                         let targetType = resData.type || "";
+                        let foundType = false;
                         for (let j = 0; j < typeSelect.options.length; j++) {
                             if (typeSelect.options[j].value.includes(targetType) || targetType.includes(typeSelect.options[j].value)) {
                                 typeSelect.selectedIndex = j;
+                                foundType = true;
                                 break;
                             }
                         }
-                        onTypeChange(); 
+                        onTypeChange(); // 同步產生第三級清單
                         
-                        // 3. ⚡ 安全延遲，智慧比對第三級：資費方案
+                        // 3. ⚡ 再給予 250 毫秒充足時差，等待網頁完全渲染完畢後勾選第三級：資費方案
                         setTimeout(() => {
                             const rateSelect = document.getElementById('tel-rate');
                             let targetRate = resData.rate || "";
@@ -310,17 +310,17 @@
                                 }
                             }
                             
-                            // 強制觸發收尾，重算退佣金額與即時預估毛利
+                            // 🚀 關鍵收尾：手動驅動資費與預估毛利結算
                             onRateChange(); 
-                            statusSpan.innerText = " ✅ 專案與退佣金額已完美帶出！";
-                        }, 180);
+                            statusSpan.innerText = " ✅ 方案細節與扣佣金額已完美帶出！";
+                        }, 250);
 
-                    }, 180);
+                    }, 250);
                     
                 } else {
-                    statusSpan.innerText = " ❌ 查無此號碼的購機保留方案明細";
+                    statusSpan.innerText = " ❌ 查無此號碼的二階段購機保留方案";
                 }
-            }).catch(() => { statusSpan.innerText = " ❌ 反查發生連線異常"; });
+            }).catch(() => { statusSpan.innerText = " ❌ 連線異常或系統正在重啟中"; });
         } else {
             statusSpan.innerText = "";
         }
@@ -385,7 +385,6 @@
         uiCalculate();
     }
 
-    // 💡 核心優化：防禦負數 $-2000 的智慧利潤算法
     function uiCalculate() {
         const type = document.getElementById('income-type').value;
         const method = document.getElementById('pay-method').value;
@@ -396,10 +395,10 @@
             globalFinalProfit = 2000;
         } 
         else if (type.indexOf("保留") === -1 && (type.indexOf("領") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("購機") !== -1)) {
-            // 安全開關：當反查尚未完成、佣金還是 0 的時候，不要直接去減 2000 造成負數，先回傳純零售利潤或 $0
+            // 防護：若歷史方案尚未完全帶出（佣金為0），先不扣除2000顯示負數，防止誤導
             if (currentCommission === 0) {
                 globalFinalProfit = price - currentCost - fee;
-                if (globalFinalProfit < 0) globalFinalProfit = 0; // 再次確保初始化不為負
+                if (globalFinalProfit < 0) globalFinalProfit = 0;
             } else {
                 const adjustedCommission = currentCommission - 2000;
                 globalFinalProfit = price + adjustedCommission - currentCost - fee;
@@ -458,9 +457,7 @@
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
         .then(res => res.json()).then(data => {
             document.getElementById('income-type').innerHTML = data.incomeList.map(v => `<option value="${v}">${v}</option>`).join('');
-            if (data.telecomData) {
-                rawTelecomData = data.telecomData; 
-            }
+            if (data.telecomData) { rawTelecomData = data.telecomData; }
             toggleTelecomSection(); 
         });
     }
@@ -476,9 +473,7 @@
     }
 
     document.addEventListener("keydown", function(e) {
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
-            e.preventDefault();
-        }
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); }
     });
 
     function submitOrder() {
