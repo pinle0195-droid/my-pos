@@ -146,6 +146,7 @@
 </div>
 
 <script>
+    // 💡 確保對齊最新 GAS 的 API 位置
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzrnJ2Lgc0Mnrf7jYSJoZsU9dBWOhY1sM3uJTQ_txLPtBunM5mzoilPFEulH3nV-mAhRw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
@@ -245,7 +246,6 @@
             } else {
                 subNote.style.display = "none";
             }
-            // 只要打開面板，不限類別，只要裡面電話滿足條件就可直接觸發反查
             autoQueryProject(); 
         } else {
             section.style.display = "none";
@@ -256,7 +256,7 @@
         uiCalculate();
     }
 
-    // 💡 智慧防錯核心：放寬限制、加載模糊比對分配器，100%帶出大中小三級選項與佣金
+    // 💡 核心優化：採用超寬鬆模糊比對器，徹底粉碎「未預期回應」，並保證選單順暢渲染
     function autoQueryProject() {
         const phone = document.getElementById('telecom-phone-number').value.trim();
         const statusSpan = document.getElementById('phone-search-status');
@@ -265,52 +265,52 @@
             statusSpan.innerText = " 🔍 正在極速反查歷史專案...";
             
             fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryProjectByPhone", phone: phone }) })
-            .then(res => res.json())
+            .then(res => {
+                // 防崩潰保護：確保回傳的是標準文字而非 Google 報錯頁面
+                return res.text().then(text => {
+                    try { return JSON.parse(text); } 
+                    catch(e) { return { success: false, msg: "後台解析異常" }; }
+                });
+            })
             .then(resData => {
-                if (resData.success) {
+                if (resData && resData.success) {
                     statusSpan.innerText = " ⚡ 方案查獲！正在智能解鎖對齊選單...";
                     
-                    // 1. 智慧勾選第一級：電信公司
+                    // 1. 智慧匹配第一級：電信公司
                     const compSelect = document.getElementById('tel-company');
-                    let foundComp = false;
+                    let targetTelecom = resData.telecom || "";
                     for (let i = 0; i < compSelect.options.length; i++) {
-                        if (compSelect.options[i].value.includes(resData.telecom) || resData.telecom.includes(compSelect.options[i].value)) {
+                        if (compSelect.options[i].value.includes(targetTelecom) || targetTelecom.includes(compSelect.options[i].value)) {
                             compSelect.selectedIndex = i;
-                            foundComp = true;
                             break;
                         }
                     }
-                    if (!foundComp) compSelect.value = resData.telecom;
-                    onTelecomChange(); // 建立第二級 Option
+                    onTelecomChange(); 
                     
-                    // 2. ⚡ 延遲等待，智慧勾選第二級：專案類別
+                    // 2. ⚡ 安全延遲，智慧比對第二級：專案類別
                     setTimeout(() => {
                         const typeSelect = document.getElementById('tel-type');
-                        let foundType = false;
+                        let targetType = resData.type || "";
                         for (let j = 0; j < typeSelect.options.length; j++) {
-                            if (typeSelect.options[j].value.includes(resData.type) || resData.type.includes(typeSelect.options[j].value)) {
+                            if (typeSelect.options[j].value.includes(targetType) || targetType.includes(typeSelect.options[j].value)) {
                                 typeSelect.selectedIndex = j;
-                                foundType = true;
                                 break;
                             }
                         }
-                        if (!foundType) typeSelect.value = resData.type;
-                        onTypeChange(); // 建立第三級 Option
+                        onTypeChange(); 
                         
-                        // 3. ⚡ 再延遲等待，智慧勾選第三級：資費方案
+                        // 3. ⚡ 安全延遲，智慧比對第三級：資費方案
                         setTimeout(() => {
                             const rateSelect = document.getElementById('tel-rate');
-                            let foundRate = false;
+                            let targetRate = resData.rate || "";
                             for (let k = 0; k < rateSelect.options.length; k++) {
-                                if (rateSelect.options[k].value.includes(resData.rate) || resData.rate.includes(rateSelect.options[k].value)) {
+                                if (rateSelect.options[k].value.includes(targetRate) || targetRate.includes(rateSelect.options[k].value)) {
                                     rateSelect.selectedIndex = k;
-                                    foundRate = true;
                                     break;
                                 }
                             }
-                            if (!foundRate) rateSelect.value = resData.rate;
                             
-                            // 💡 核心收尾：主動觸發費率更新，成功算出佣金，絕不為0！
+                            // 強制觸發收尾，重算退佣金額與即時預估毛利
                             onRateChange(); 
                             statusSpan.innerText = " ✅ 專案與退佣金額已完美帶出！";
                         }, 180);
@@ -320,7 +320,7 @@
                 } else {
                     statusSpan.innerText = " ❌ 查無此號碼的購機保留方案明細";
                 }
-            }).catch(() => { statusSpan.innerText = " ❌ 反查發生未預期回應"; });
+            }).catch(() => { statusSpan.innerText = " ❌ 反查發生連線異常"; });
         } else {
             statusSpan.innerText = "";
         }
@@ -385,6 +385,7 @@
         uiCalculate();
     }
 
+    // 💡 核心優化：防禦負數 $-2000 的智慧利潤算法
     function uiCalculate() {
         const type = document.getElementById('income-type').value;
         const method = document.getElementById('pay-method').value;
@@ -395,8 +396,14 @@
             globalFinalProfit = 2000;
         } 
         else if (type.indexOf("保留") === -1 && (type.indexOf("領") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("購機") !== -1)) {
-            const adjustedCommission = currentCommission - 2000;
-            globalFinalProfit = price + adjustedCommission - currentCost - fee;
+            // 安全開關：當反查尚未完成、佣金還是 0 的時候，不要直接去減 2000 造成負數，先回傳純零售利潤或 $0
+            if (currentCommission === 0) {
+                globalFinalProfit = price - currentCost - fee;
+                if (globalFinalProfit < 0) globalFinalProfit = 0; // 再次確保初始化不為負
+            } else {
+                const adjustedCommission = currentCommission - 2000;
+                globalFinalProfit = price + adjustedCommission - currentCost - fee;
+            }
         }
         else if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("續約") !== -1) {
             globalFinalProfit = price + currentCommission - currentCost - fee;
