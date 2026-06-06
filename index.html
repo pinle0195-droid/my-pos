@@ -26,7 +26,6 @@
         .loading-text { color: #3498db; font-size: 0.8rem; }
         .telecom-box { background: #f0f4f8; padding: 12px; border-radius: 8px; border: 1px solid #d0e0f0; margin-bottom: 12px; display: none; }
         
-        /* 💡 新增：E 欄小提醒的專屬精美樣式 */
         .extra-reminder-box { 
             background: #fff9db; 
             padding: 12px; 
@@ -36,7 +35,7 @@
             margin-bottom: 15px;
             font-size: 0.9rem;
             color: #b02a37;
-            display: none; /* 有資料時才會透過 JS 自動展開 */
+            display: none; 
             line-height: 1.4;
         }
     </style>
@@ -63,11 +62,16 @@
                 </div>
 
                 <div id="excel-e-reminder" class="extra-reminder-box">
-                    📌 <b>商品重要提醒：</b><span id="e-reminder-text"></span>
+                    📌 <b>重要提醒：</b><span id="e-reminder-text"></span>
                 </div>
 
                 <div class="input-group"><label>客戶姓名</label><input type="text" id="cust-name"></div>
-                <div class="input-group"><label>售價</label><input type="number" id="sale-price" oninput="uiCalculate()"></div>
+                
+                <div class="input-group" id="normal-price-group">
+                    <label>售價 (零售價)</label>
+                    <input type="number" id="sale-price" oninput="uiCalculate()">
+                </div>
+                
                 <div class="input-group">
                     <label>支付方式</label>
                     <select id="pay-method" onchange="uiCalculate()">
@@ -84,6 +88,12 @@
 
                 <div id="telecom-section" class="telecom-box">
                     <div style="font-weight:bold; font-size:0.9rem; color:#2c3e50; margin-bottom:10px;">📞 門號專案細節</div>
+                    
+                    <div class="input-group" style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #bde0fe; margin-bottom: 12px;">
+                        <label style="color: #2b6cb0;">💰 客戶支付的【專案價】</label>
+                        <input type="number" id="telecom-project-price" placeholder="請輸入門號專案折扣後的價格" oninput="uiCalculate()">
+                    </div>
+
                     <div class="input-group">
                         <label>電信公司</label>
                         <select id="tel-company" onchange="onTelecomChange()">
@@ -102,7 +112,7 @@
                             <option value="">-- 請選擇資費 --</option>
                         </select>
                     </div>
-                    <div style="font-size:0.85rem; color:#4a5568;">💡 本單預估門號佣金: <b id="commission-display" style="color:#27ae60;">$0</b></div>
+                    <div style="font-size:0.85rem; color:#4a5568;">💡 本單門號佣金: <b id="commission-display" style="color:#27ae60;">$0</b></div>
                 </div>
 
                 <div class="input-group"><label>經手人</label><select id="staff"><option>坤霖</option><option>思璇</option><option>嘉尹</option></select></div>
@@ -132,6 +142,7 @@
 </div>
 
 <script>
+    // ⚠️ 記得把這裡的網址換成您最新的 GAS 網址喔！
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbz_8f0mMBqkkkwPMhOw_CPIVYUNjuDATofB2gyWik4LawzU4PiK4Po8KoBgkyZjIcXngw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
@@ -159,14 +170,11 @@
         if (sn.length < 5) return;
         document.getElementById('scan-status').innerText = "🔍 查詢中...";
 
-        // 優先 Firebase
         db.ref('inventory/' + sn).once('value').then(snap => {
             if (snap.exists()) {
-                // 如果 Firebase 欄位有預留 eColumnReminder 或描述，可在此處同步載入
                 const fData = snap.val();
                 handleStockResult(fData.soldTo ? {error: "已售給 " + fData.soldTo} : {productName: fData.name, cost: fData.cost, eReminder: fData.eReminder || ""});
             } else {
-                // 轉向 Excel 查詢 (Excel 的 checkStock 原本就包含 B欄品名, C欄成本。若您想直接把庫存表或專案表的描述帶出，可以直接在後端 checkStock 補上回傳)
                 fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
                 .then(res => res.json()).then(handleStockResult);
             }
@@ -186,7 +194,6 @@
             currentCost = parseFloat(data.cost);
             btn.disabled = false;
             
-            // 💡 處理小提醒顯示邏輯：如果查到的資料有攜帶 E 欄提醒內容，則展開黃色提示方塊
             if (data.eReminder && data.eReminder.trim() !== "") {
                 reminderText.innerText = data.eReminder;
                 reminderBox.style.display = "block";
@@ -204,17 +211,24 @@
     function toggleTelecomSection() {
         const type = document.getElementById('income-type').value;
         const section = document.getElementById('telecom-section');
+        const normalPriceGroup = document.getElementById('normal-price-group');
+        
         if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
             section.style.display = "block";
+            normalPriceGroup.style.display = "none"; // 辦門號時隱藏一般零售價欄位，改用專案價
             buildTelecomCompanies();
         } else {
+            section.style.display = "block";
             section.style.display = "none";
+            normalPriceGroup.style.display = "block";
             resetTelecomSelection();
         }
+        uiCalculate();
     }
 
     function resetTelecomSelection() {
         currentCommission = 0;
+        document.getElementById('telecom-project-price').value = "";
         document.getElementById('commission-display').innerText = "$0";
         document.getElementById('tel-company').selectedIndex = 0;
         document.getElementById('tel-type').innerHTML = '<option value="">-- 請選擇專案 --</option>';
@@ -261,30 +275,34 @@
         const com = document.getElementById('tel-company').value;
         const type = document.getElementById('tel-type').value;
         const rate = document.getElementById('tel-rate').value;
-        const reminderBox = document.getElementById('excel-e-reminder');
-        const reminderText = document.getElementById('e-reminder-text');
         
-        if (!com || !type || !rate) { 
-            currentCommission = 0; 
-            document.getElementById('commission-display').innerText = "$0"; 
-            uiCalculate(); 
-            return; 
-        }
+        if (!com || !type || !rate) { currentCommission = 0; document.getElementById('commission-display').innerText = "$0"; uiCalculate(); return; }
         
         const target = rawTelecomData.find(item => item.telecom === com && item.type === type && item.rate === rate);
         currentCommission = target ? target.commission : 0;
         document.getElementById('commission-display').innerText = "$" + currentCommission.toLocaleString();
-        
-        // 💡 如果是門號專案，我們也可以順便把資費方案的特色或備註（若未來您在資費有紀錄）展示在小提醒區
         uiCalculate();
     }
 
+    // 💡 運算毛利的核心邏輯優化
     function uiCalculate() {
-        const price = parseFloat(document.getElementById('sale-price').value) || 0;
+        const type = document.getElementById('income-type').value;
         const method = document.getElementById('pay-method').value;
-        const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
         
-        globalFinalProfit = price - currentCost - fee + currentCommission;
+        let price = 0;
+        // 如果是門號專案，價格欄位改成抓取「專案價」
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
+            price = parseFloat(document.getElementById('telecom-project-price').value) || 0;
+            const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
+            // 公式：專案價 + 佣金 - 商品成本 - 手續費
+            globalFinalProfit = price + currentCommission - currentCost - fee;
+        } else {
+            // 一般零售商品公式：售價 - 商品成本 - 手續費
+            price = parseFloat(document.getElementById('sale-price').value) || 0;
+            const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
+            globalFinalProfit = price - currentCost - fee;
+        }
+        
         document.getElementById('res-profit').innerText = "$" + Math.round(globalFinalProfit).toLocaleString();
     }
 
@@ -294,7 +312,10 @@
         
         const type = document.getElementById('income-type').value;
         let finalNote = "";
+        let finalPrice = parseFloat(document.getElementById('sale-price').value) || 0;
+        
         if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
+            finalPrice = parseFloat(document.getElementById('telecom-project-price').value) || 0;
             const com = document.getElementById('tel-company').value;
             const t = document.getElementById('tel-type').value;
             const r = document.getElementById('tel-rate').value;
@@ -309,7 +330,7 @@
             incomeType: document.getElementById('income-type').value,
             payMethod: document.getElementById('pay-method').value,
             consumerName: document.getElementById('cust-name').value + " - " + document.getElementById('res-name').innerText,
-            price: document.getElementById('sale-price').value,
+            price: finalPrice, // 自動丟出專案價或零售價
             cost: currentCost,
             sn: document.getElementById('sale-sn').value,
             staff: document.getElementById('staff').value,
