@@ -230,17 +230,18 @@
         const priceLabel = document.getElementById('price-label');
         const subNote = document.getElementById('sub-comm-note');
         
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1) {
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1 || type.indexOf("優惠") !== -1) {
             section.style.display = "block";
             buildTelecomCompanies();
             
-            if (type.indexOf("保留") !== -1 || type.indexOf("領購") !== -1) {
+            if (type.indexOf("保留") !== -1 || type.indexOf("領購") !== -1 || type.indexOf("領取") !== -1) {
                 priceLabel.innerText = "💰 商品專案價";
             } else {
                 priceLabel.innerText = "售價 / 專案金額";
             }
 
-            if (type.indexOf("領購") !== -1) {
+            // 只要不是保留（代表今天是來領機、扣佣金的），就把二階段標籤亮起來並反查電話
+            if (type.indexOf("保留") === -1 && (type.indexOf("領") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("購機") !== -1)) {
                 subNote.style.display = "inline";
                 autoQueryProject(); 
             } else {
@@ -255,10 +256,12 @@
         uiCalculate();
     }
 
-    // 💡 核心修正：加入非同步「時差延遲鎖」，確保選單完全渲染後再向下勾選，防止出現空白
+    // 💡 智慧優化：放寬判定，只要不包含「保留」且包含門號核心關鍵字，輸入電話滿10碼就立刻反查帶出！
     function autoQueryProject() {
         const type = document.getElementById('income-type').value;
-        if (type.indexOf("領購") === -1) return;
+        
+        // 如果目前選的類別包含「保留」，代表今天是第一階段，直接略過不反查
+        if (type.indexOf("保留") !== -1) return;
 
         const phone = document.getElementById('telecom-phone-number').value.trim();
         const statusSpan = document.getElementById('phone-search-status');
@@ -269,24 +272,23 @@
             .then(res => res.json())
             .then(resData => {
                 if (resData.success) {
-                    statusSpan.innerText = " ✅ 方案提取成功！正在自動部署選單...";
+                    statusSpan.innerText = " ✅ 方案提取成功！正在佈署選單...";
                     
                     // 1. 先選第一級：電信公司
                     const compSelect = document.getElementById('tel-company');
                     compSelect.value = resData.telecom;
                     onTelecomChange(); 
                     
-                    // 2. ⚡ 延遲 150 毫秒，等網頁把第二級「專案類別」的 Option 標籤渲染完畢後再塞值
+                    // 2. ⚡ 延遲等待渲染，解決時差問題
                     setTimeout(() => {
                         const typeSelect = document.getElementById('tel-type');
                         typeSelect.value = resData.type;
                         onTypeChange(); 
                         
-                        // 3. ⚡ 再延遲 150 毫秒，等網頁把第三級「資費方案」渲染完畢後塞值並結算佣金
                         setTimeout(() => {
                             const rateSelect = document.getElementById('tel-rate');
                             rateSelect.value = resData.rate;
-                            onRateChange(); // 💡 關鍵：此時選單完整就位，成功觸發退佣計算，佣金不會再歸0！
+                            onRateChange(); // 💡 觸發佣金運算（此時會自動扣除 2,000 元）
                             statusSpan.innerText = " ✅ 方案已全部完全帶出！";
                         }, 150);
 
@@ -347,6 +349,7 @@
         uiCalculate();
     }
 
+    // 選擇資費並結算
     function onRateChange() {
         const com = document.getElementById('tel-company').value;
         const type = document.getElementById('tel-type').value;
@@ -366,16 +369,21 @@
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
         
+        // 🌟 規則1：只要收入類別名字裡面包含「保留」，利潤定死為 2000
         if (type.indexOf("保留") !== -1) {
             globalFinalProfit = 2000;
         } 
-        else if (type.indexOf("領購") !== -1) {
+        // 🌟 規則2：如果不包含保留，但包含「領」、「優惠」、「購機」，代表今天是二階段領機
+        // 公式：專案價 + (佣金 - 2000) - 手機成本 - 手續費
+        else if (type.indexOf("保留") === -1 && (type.indexOf("領") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("購機") !== -1)) {
             const adjustedCommission = currentCommission - 2000;
             globalFinalProfit = price + adjustedCommission - currentCost - fee;
         }
+        // 普通申辦
         else if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("續約") !== -1) {
             globalFinalProfit = price + currentCommission - currentCost - fee;
         } 
+        // 一般零售
         else {
             globalFinalProfit = price - currentCost - fee;
         }
@@ -392,7 +400,7 @@
         let phoneNumber = ""; 
         let telecomProjectString = ""; 
         
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1) {
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1 || type.indexOf("優惠") !== -1) {
             phoneNumber = document.getElementById('telecom-phone-number').value.trim(); 
             const com = document.getElementById('tel-company').value;
             const t = document.getElementById('tel-type').value;
