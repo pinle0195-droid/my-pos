@@ -24,6 +24,21 @@
         .btn-pay:disabled { background: #ccc; }
         #reminder-bar { display:none; background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:15px; text-align:center; font-weight:bold; }
         .loading-text { color: #3498db; font-size: 0.8rem; }
+        .telecom-box { background: #f0f4f8; padding: 12px; border-radius: 8px; border: 1px solid #d0e0f0; margin-bottom: 12px; display: none; }
+        
+        /* 💡 新增：E 欄小提醒的專屬精美樣式 */
+        .extra-reminder-box { 
+            background: #fff9db; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 1px solid #ffe3e3; 
+            margin-top: 15px; 
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #b02a37;
+            display: none; /* 有資料時才會透過 JS 自動展開 */
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body onload="initSystem()">
@@ -46,6 +61,11 @@
                         <span>預估毛利:</span><span id="res-profit">$0</span>
                     </div>
                 </div>
+
+                <div id="excel-e-reminder" class="extra-reminder-box">
+                    📌 <b>商品重要提醒：</b><span id="e-reminder-text"></span>
+                </div>
+
                 <div class="input-group"><label>客戶姓名</label><input type="text" id="cust-name"></div>
                 <div class="input-group"><label>售價</label><input type="number" id="sale-price" oninput="uiCalculate()"></div>
                 <div class="input-group">
@@ -56,7 +76,35 @@
                         <option value="無卡分期">無卡分期 (2%)</option>
                     </select>
                 </div>
-                <div class="input-group"><label>收入類別</label><select id="income-type"></select></div>
+                
+                <div class="input-group">
+                    <label>收入類別</label>
+                    <select id="income-type" onchange="toggleTelecomSection()"></select>
+                </div>
+
+                <div id="telecom-section" class="telecom-box">
+                    <div style="font-weight:bold; font-size:0.9rem; color:#2c3e50; margin-bottom:10px;">📞 門號專案細節</div>
+                    <div class="input-group">
+                        <label>電信公司</label>
+                        <select id="tel-company" onchange="onTelecomChange()">
+                            <option value="">-- 請選擇電信 --</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>專案類別</label>
+                        <select id="tel-type" onchange="onTypeChange()">
+                            <option value="">-- 請選擇專案 --</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>資費方案</label>
+                        <select id="tel-rate" onchange="onRateChange()">
+                            <option value="">-- 請選擇資費 --</option>
+                        </select>
+                    </div>
+                    <div style="font-size:0.85rem; color:#4a5568;">💡 本單預估門號佣金: <b id="commission-display" style="color:#27ae60;">$0</b></div>
+                </div>
+
                 <div class="input-group"><label>經手人</label><select id="staff"><option>坤霖</option><option>思璇</option><option>嘉尹</option></select></div>
                 <button id="btn-checkout" class="btn btn-pay" onclick="submitCheckout()">確認結帳</button>
             </div>
@@ -91,6 +139,9 @@
     
     let currentCost = 0;
     let timer;
+    let rawTelecomData = []; 
+    let currentCommission = 0; 
+    let globalFinalProfit = 0; 
 
     function initSystem() {
         fetchParams();
@@ -108,10 +159,14 @@
         if (sn.length < 5) return;
         document.getElementById('scan-status').innerText = "🔍 查詢中...";
 
+        // 優先 Firebase
         db.ref('inventory/' + sn).once('value').then(snap => {
             if (snap.exists()) {
-                handleStockResult(snap.val().soldTo ? {error: "已售給 " + snap.val().soldTo} : {productName: snap.val().name, cost: snap.val().cost});
+                // 如果 Firebase 欄位有預留 eColumnReminder 或描述，可在此處同步載入
+                const fData = snap.val();
+                handleStockResult(fData.soldTo ? {error: "已售給 " + fData.soldTo} : {productName: fData.name, cost: fData.cost, eReminder: fData.eReminder || ""});
             } else {
+                // 轉向 Excel 查詢 (Excel 的 checkStock 原本就包含 B欄品名, C欄成本。若您想直接把庫存表或專案表的描述帶出，可以直接在後端 checkStock 補上回傳)
                 fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
                 .then(res => res.json()).then(handleStockResult);
             }
@@ -120,16 +175,107 @@
 
     function handleStockResult(data) {
         const btn = document.getElementById('btn-checkout');
+        const reminderBox = document.getElementById('excel-e-reminder');
+        const reminderText = document.getElementById('e-reminder-text');
+        
         document.getElementById('scan-status').innerText = "";
+        
         if (data && !data.error) {
             document.getElementById('res-name').innerText = data.productName;
             document.getElementById('res-cost').innerText = "$" + data.cost;
             currentCost = parseFloat(data.cost);
             btn.disabled = false;
+            
+            // 💡 處理小提醒顯示邏輯：如果查到的資料有攜帶 E 欄提醒內容，則展開黃色提示方塊
+            if (data.eReminder && data.eReminder.trim() !== "") {
+                reminderText.innerText = data.eReminder;
+                reminderBox.style.display = "block";
+            } else {
+                reminderBox.style.display = "none";
+            }
         } else {
             document.getElementById('res-name').innerHTML = `<span style="color:red">${data.error || "查無序號"}</span>`;
             btn.disabled = true;
+            reminderBox.style.display = "none";
         }
+        uiCalculate();
+    }
+
+    function toggleTelecomSection() {
+        const type = document.getElementById('income-type').value;
+        const section = document.getElementById('telecom-section');
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
+            section.style.display = "block";
+            buildTelecomCompanies();
+        } else {
+            section.style.display = "none";
+            resetTelecomSelection();
+        }
+    }
+
+    function resetTelecomSelection() {
+        currentCommission = 0;
+        document.getElementById('commission-display').innerText = "$0";
+        document.getElementById('tel-company').selectedIndex = 0;
+        document.getElementById('tel-type').innerHTML = '<option value="">-- 請選擇專案 --</option>';
+        document.getElementById('tel-rate').innerHTML = '<option value="">-- 請選擇資費 --</option>';
+        uiCalculate();
+    }
+
+    function buildTelecomCompanies() {
+        const companySelect = document.getElementById('tel-company');
+        const companies = [...new Set(rawTelecomData.map(item => item.telecom))];
+        companySelect.innerHTML = '<option value="">-- 請選擇電信 --</option>' + 
+            companies.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function onTelecomChange() {
+        const com = document.getElementById('tel-company').value;
+        const typeSelect = document.getElementById('tel-type');
+        typeSelect.innerHTML = '<option value="">-- 請選擇專案 --</option>';
+        document.getElementById('tel-rate').innerHTML = '<option value="">-- 請選擇資費 --</option>';
+        currentCommission = 0;
+        document.getElementById('commission-display').innerText = "$0";
+        
+        if (!com) { uiCalculate(); return; }
+        const filteredTypes = [...new Set(rawTelecomData.filter(item => item.telecom === com).map(item => item.type))];
+        typeSelect.innerHTML += filteredTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+        uiCalculate();
+    }
+
+    function onTypeChange() {
+        const com = document.getElementById('tel-company').value;
+        const type = document.getElementById('tel-type').value;
+        const rateSelect = document.getElementById('tel-rate');
+        rateSelect.innerHTML = '<option value="">-- 請選擇資費 --</option>';
+        currentCommission = 0;
+        document.getElementById('commission-display').innerText = "$0";
+        
+        if (!com || !type) { uiCalculate(); return; }
+        const filteredRates = rawTelecomData.filter(item => item.telecom === com && item.type === type);
+        rateSelect.innerHTML += filteredRates.map(r => `<option value="${r.rate}">${r.rate}</option>`).join('');
+        uiCalculate();
+    }
+
+    function onRateChange() {
+        const com = document.getElementById('tel-company').value;
+        const type = document.getElementById('tel-type').value;
+        const rate = document.getElementById('tel-rate').value;
+        const reminderBox = document.getElementById('excel-e-reminder');
+        const reminderText = document.getElementById('e-reminder-text');
+        
+        if (!com || !type || !rate) { 
+            currentCommission = 0; 
+            document.getElementById('commission-display').innerText = "$0"; 
+            uiCalculate(); 
+            return; 
+        }
+        
+        const target = rawTelecomData.find(item => item.telecom === com && item.type === type && item.rate === rate);
+        currentCommission = target ? target.commission : 0;
+        document.getElementById('commission-display').innerText = "$" + currentCommission.toLocaleString();
+        
+        // 💡 如果是門號專案，我們也可以順便把資費方案的特色或備註（若未來您在資費有紀錄）展示在小提醒區
         uiCalculate();
     }
 
@@ -137,12 +283,26 @@
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const method = document.getElementById('pay-method').value;
         const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
-        document.getElementById('res-profit').innerText = "$" + (price - currentCost - fee).toLocaleString();
+        
+        globalFinalProfit = price - currentCost - fee + currentCommission;
+        document.getElementById('res-profit').innerText = "$" + Math.round(globalFinalProfit).toLocaleString();
     }
 
     function submitCheckout() {
         const btn = document.getElementById('btn-checkout');
         btn.disabled = true; btn.innerText = "寫入中...";
+        
+        const type = document.getElementById('income-type').value;
+        let finalNote = "";
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
+            const com = document.getElementById('tel-company').value;
+            const t = document.getElementById('tel-type').value;
+            const r = document.getElementById('tel-rate').value;
+            if(com && t && r) {
+                finalNote = ` [門號方案: ${com}/${t}/${r} (退佣:$${currentCommission})]`;
+            }
+        }
+
         const payload = {
             action: "checkout",
             date: new Date().toLocaleDateString('zh-TW'),
@@ -152,7 +312,9 @@
             price: document.getElementById('sale-price').value,
             cost: currentCost,
             sn: document.getElementById('sale-sn').value,
-            staff: document.getElementById('staff').value
+            staff: document.getElementById('staff').value,
+            extraNote: finalNote, 
+            calculatedProfit: globalFinalProfit 
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
@@ -162,6 +324,10 @@
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
         .then(res => res.json()).then(data => {
             document.getElementById('income-type').innerHTML = data.incomeList.map(v => `<option value="${v}">${v}</option>`).join('');
+            if (data.telecomData) {
+                rawTelecomData = data.telecomData; 
+            }
+            toggleTelecomSection(); 
         });
     }
 
@@ -182,7 +348,7 @@
             product: document.getElementById('ord-product').value,
             orderTime: new Date().toLocaleDateString('zh-TW'),
             pickupTime: document.getElementById('ord-pickup').value,
-            note: document.getElementById('ord-note').value // ★把備註欄位加入打包資料中
+            note: document.getElementById('ord-note').value
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
