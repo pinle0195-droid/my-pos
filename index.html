@@ -146,8 +146,7 @@
 </div>
 
 <script>
-    // ⚠️ 記得替換成最新的 GS 部署網址（由後台更新後產生）
-    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbxp9kgEggQSTPgSIaTHtA2o_bAdtcJI3Dp8qKb0q3vlqHBDQtl8p7htAGXCMD5abfuHMQ/exec"; 
+    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzrnJ2Lgc0Mnrf7jYSJoZsU9dBWOhY1sM3uJTQ_txLPtBunM5mzoilPFEulH3nV-mAhRw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -243,7 +242,7 @@
 
             if (type.indexOf("領購") !== -1) {
                 subNote.style.display = "inline";
-                autoQueryProject(); // 💡 切換到領購機優惠時，如果電話已經填好了，直接觸發反查
+                autoQueryProject(); 
             } else {
                 subNote.style.display = "none";
             }
@@ -256,38 +255,42 @@
         uiCalculate();
     }
 
-    // 💡 新增：自動往流水帳反查上次申辦的方案細節並秒選
+    // 💡 核心修正：加入非同步「時差延遲鎖」，確保選單完全渲染後再向下勾選，防止出現空白
     function autoQueryProject() {
         const type = document.getElementById('income-type').value;
-        // 只有當選取「領購機優惠」相關類別時，才觸發自動帶出功能
         if (type.indexOf("領購") === -1) return;
 
         const phone = document.getElementById('telecom-phone-number').value.trim();
         const statusSpan = document.getElementById('phone-search-status');
         
-        // 台灣手機號碼通常為 10 碼，輸入滿 10 碼自動查詢
         if (phone.length === 10) {
             statusSpan.innerText = " 🔍 正在調閱歷史專案...";
             fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryProjectByPhone", phone: phone }) })
             .then(res => res.json())
             .then(resData => {
                 if (resData.success) {
-                    statusSpan.innerText = " ✅ 已尋獲並自動帶出方案！";
+                    statusSpan.innerText = " ✅ 方案提取成功！正在自動部署選單...";
                     
-                    // 1. 自動勾選電信公司
+                    // 1. 先選第一級：電信公司
                     const compSelect = document.getElementById('tel-company');
                     compSelect.value = resData.telecom;
-                    onTelecomChange(); // 驅動第二級
+                    onTelecomChange(); 
                     
-                    // 2. 自動勾選專案類別
-                    const typeSelect = document.getElementById('tel-type');
-                    typeSelect.value = resData.type;
-                    onTypeChange(); // 驅動第三級
-                    
-                    // 3. 自動勾選資費
-                    const rateSelect = document.getElementById('tel-rate');
-                    rateSelect.value = resData.rate;
-                    onRateChange(); // 結算佣金
+                    // 2. ⚡ 延遲 150 毫秒，等網頁把第二級「專案類別」的 Option 標籤渲染完畢後再塞值
+                    setTimeout(() => {
+                        const typeSelect = document.getElementById('tel-type');
+                        typeSelect.value = resData.type;
+                        onTypeChange(); 
+                        
+                        // 3. ⚡ 再延遲 150 毫秒，等網頁把第三級「資費方案」渲染完畢後塞值並結算佣金
+                        setTimeout(() => {
+                            const rateSelect = document.getElementById('tel-rate');
+                            rateSelect.value = resData.rate;
+                            onRateChange(); // 💡 關鍵：此時選單完整就位，成功觸發退佣計算，佣金不會再歸0！
+                            statusSpan.innerText = " ✅ 方案已全部完全帶出！";
+                        }, 150);
+
+                    }, 150);
                     
                 } else {
                     statusSpan.innerText = " ❌ 流水帳查無此號碼的專案細節";
@@ -439,6 +442,12 @@
             }
         });
     }
+
+    document.addEventListener("keydown", function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+            e.preventDefault();
+        }
+    });
 
     function submitOrder() {
         const payload = {
