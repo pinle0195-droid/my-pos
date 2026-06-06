@@ -68,7 +68,7 @@
                 <div class="input-group"><label>客戶姓名</label><input type="text" id="cust-name"></div>
                 
                 <div class="input-group" id="normal-price-group">
-                    <label>售價 (零售價)</label>
+                    <label id="price-label">售價 (零售價)</label>
                     <input type="number" id="sale-price" oninput="uiCalculate()">
                 </div>
                 
@@ -94,11 +94,6 @@
                         <input type="tel" id="telecom-phone-number" placeholder="例如：0912345678">
                     </div>
 
-                    <div class="input-group" id="project-price-group">
-                        <label style="color: #2b6cb0;">💰 客戶支付的【專案價】</label>
-                        <input type="number" id="telecom-project-price" placeholder="請輸入門號專案折扣後的價格" oninput="uiCalculate()">
-                    </div>
-
                     <div class="input-group">
                         <label>電信公司</label>
                         <select id="tel-company" onchange="onTelecomChange()">
@@ -117,7 +112,11 @@
                             <option value="">-- 請選擇資費 --</option>
                         </select>
                     </div>
-                    <div style="font-size:0.85rem; color:#4a5568;">💡 本單門號佣金: <b id="commission-display" style="color:#27ae60;">$0</b></div>
+                    
+                    <div style="font-size:0.85rem; color:#4a5568;">
+                        💡 本單門號總佣金: <b id="commission-display" style="color:#27ae60;">$0</b>
+                        <span id="sub-comm-note" style="display:none; color:#e67e22; margin-left:5px;">(二階段扣除 2,000 計算)</span>
+                    </div>
                 </div>
 
                 <div class="input-group"><label>經手人</label><select id="staff"><option>坤霖</option><option>思璇</option><option>嘉尹</option></select></div>
@@ -147,7 +146,6 @@
 </div>
 
 <script>
-    // ⚠️ 貼上到 GitHub 後請再次確認這裡的網址是否正確
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzrnJ2Lgc0Mnrf7jYSJoZsU9dBWOhY1sM3uJTQ_txLPtBunM5mzoilPFEulH3nV-mAhRw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
@@ -158,7 +156,7 @@
     let rawTelecomData = []; 
     let currentCommission = 0; 
     let globalFinalProfit = 0; 
-    let searchActiveId = 0; // 高速防併發鎖
+    let searchActiveId = 0; 
 
     function initSystem() {
         fetchParams();
@@ -168,10 +166,9 @@
     function debounceSearch() {
         clearTimeout(timer);
         document.getElementById('scan-status').innerText = "⏳ 輸入中...";
-        timer = setTimeout(fetchStockData, 300); // 縮短延遲提高靈敏度
+        timer = setTimeout(fetchStockData, 300); 
     }
 
-    // ⚡ 核心極速優化：雙管齊下並行查詢法
     function fetchStockData() {
         const sn = document.getElementById('sale-sn').value.trim();
         if (sn.length < 5) return;
@@ -187,7 +184,6 @@
             handleStockResult(data);
         }
 
-        // 1. 同時往 Firebase 查 (速度極快)
         db.ref('inventory/' + sn).once('value').then(snap => {
             if (snap.exists()) {
                 const fData = snap.val();
@@ -195,7 +191,6 @@
             }
         }).catch(()=>{});
 
-        // 2. 同時往 GAS 查 (當作強力後盾)
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
         .then(res => res.json())
         .then(data => { tryResolve(data); })
@@ -232,16 +227,31 @@
     function toggleTelecomSection() {
         const type = document.getElementById('income-type').value;
         const section = document.getElementById('telecom-section');
-        const normalPriceGroup = document.getElementById('normal-price-group');
+        const priceLabel = document.getElementById('price-label');
+        const subNote = document.getElementById('sub-comm-note');
         
-        // 判斷是否為門號相關類別
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
+        // 判斷是否為門號或購機、保留相關業務
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1) {
             section.style.display = "block";
-            normalPriceGroup.style.display = "none"; // 門號相關時隱藏一般售價，由專案價接管
             buildTelecomCompanies();
+            
+            // 欄位動態改名
+            if (type.indexOf("保留") !== -1 || type.indexOf("領購") !== -1) {
+                priceLabel.innerText = "💰 商品專案價";
+            } else {
+                priceLabel.innerText = "售價 / 專案金額";
+            }
+
+            // 二階段扣佣提示
+            if (type.indexOf("領購") !== -1) {
+                subNote.style.display = "inline";
+            } else {
+                subNote.style.display = "none";
+            }
         } else {
             section.style.display = "none";
-            normalPriceGroup.style.display = "block";
+            priceLabel.innerText = "售價 (零售價)";
+            subNote.style.display = "none";
             resetTelecomSelection();
         }
         uiCalculate();
@@ -249,7 +259,6 @@
 
     function resetTelecomSelection() {
         currentCommission = 0;
-        document.getElementById('telecom-project-price').value = "";
         document.getElementById('telecom-phone-number').value = "";
         document.getElementById('commission-display').innerText = "$0";
         document.getElementById('tel-company').selectedIndex = 0;
@@ -306,27 +315,29 @@
         uiCalculate();
     }
 
-    // 💡 運算毛利的核心邏輯優化（新增門號購機固定毛利 2000 公式）
+    // 💡 核心升級：精準對接二階段「購機保留」與「領取購機優惠」的利潤公式
     function uiCalculate() {
         const type = document.getElementById('income-type').value;
         const method = document.getElementById('pay-method').value;
+        const price = parseFloat(document.getElementById('sale-price').value) || 0;
+        const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
         
-        let price = 0;
-        
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
-            // ⭐ 新增邏輯：如果是【門號購機優惠】，毛利固定死 2000 元！
-            if (type.indexOf("購機") !== -1) {
-                globalFinalProfit = 2000;
-            } else {
-                // 原有的門號專案：專案價 + 佣金 - 商品成本 - 手續費
-                price = parseFloat(document.getElementById('telecom-project-price').value) || 0;
-                const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
-                globalFinalProfit = price + currentCommission - currentCost - fee;
-            }
-        } else {
-            // 一般零售商品公式：售價 - 商品成本 - 手續費
-            price = parseFloat(document.getElementById('sale-price').value) || 0;
-            const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
+        // ✨ 階段 1：當收入類別精準選到「門號購機保留」時，強制定死利潤為 $2,000 元！
+        if (type.indexOf("門號購機保留") !== -1) {
+            globalFinalProfit = 2000;
+        } 
+        // ✨ 階段 2：當日後領取時（例如名稱叫 領取購機、領購機優惠 等包含「領購」的項目）
+        // 公式：商品專案價 + (當時佣金 - 2000) - 商品成本 - 手續費
+        else if (type.indexOf("領購") !== -1) {
+            const adjustedCommission = currentCommission - 2000;
+            globalFinalProfit = price + adjustedCommission - currentCost - fee;
+        }
+        // 普通的門號/申辦業務：售價 + 佣金 - 商品成本 - 手續費
+        else if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("續約") !== -1) {
+            globalFinalProfit = price + currentCommission - currentCost - fee;
+        } 
+        // 一般零售商品：售價 - 商品成本 - 手續費
+        else {
             globalFinalProfit = price - currentCost - fee;
         }
         
@@ -338,19 +349,19 @@
         btn.disabled = true; btn.innerText = "寫入中...";
         
         const type = document.getElementById('income-type').value;
+        const price = parseFloat(document.getElementById('sale-price').value) || 0;
         let finalNote = "";
-        let finalPrice = parseFloat(document.getElementById('sale-price').value) || 0;
-        let phoneNumber = ""; // 續約號碼預設空
+        let phoneNumber = ""; 
         
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
-            finalPrice = parseFloat(document.getElementById('telecom-project-price').value) || 0;
-            phoneNumber = document.getElementById('telecom-phone-number').value.trim(); // 抓取號碼
-            
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1) {
+            phoneNumber = document.getElementById('telecom-phone-number').value.trim(); 
             const com = document.getElementById('tel-company').value;
             const t = document.getElementById('tel-type').value;
             const r = document.getElementById('tel-rate').value;
             if(com && t && r) {
-                finalNote = ` [門號方案: ${com}/${t}/${r} (退佣:$${currentCommission})]`;
+                // 自動在備註中寫下專案細節與扣佣說明，方便日後在流水帳對帳
+                const commText = type.indexOf("領購") !== -1 ? `已扣2000實補:${currentCommission - 2000}` : `退佣:${currentCommission}`;
+                finalNote = ` [門號方案: ${com}/${t}/${r} (${commText})]`;
             }
         }
 
@@ -360,13 +371,13 @@
             incomeType: document.getElementById('income-type').value,
             payMethod: document.getElementById('pay-method').value,
             consumerName: document.getElementById('cust-name').value + " - " + document.getElementById('res-name').innerText,
-            price: finalPrice, 
+            price: price, 
             cost: currentCost,
             sn: document.getElementById('sale-sn').value,
             staff: document.getElementById('staff').value,
             extraNote: finalNote, 
             calculatedProfit: globalFinalProfit,
-            telecomPhone: phoneNumber // 🚀 拋給後端寫入 P 欄
+            telecomPhone: phoneNumber 
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
