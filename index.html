@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>品樂 POS 2026 優化版</title>
+    <title>品樂 POS 2026 高速極速版</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
@@ -89,7 +89,12 @@
                 <div id="telecom-section" class="telecom-box">
                     <div style="font-weight:bold; font-size:0.9rem; color:#2c3e50; margin-bottom:10px;">📞 門號專案細節</div>
                     
-                    <div class="input-group" style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #bde0fe; margin-bottom: 12px;">
+                    <div class="input-group" style="background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e0; margin-bottom: 12px;">
+                        <label style="color: #4a5568;">📱 客戶【續約/申辦的電話號碼】</label>
+                        <input type="tel" id="telecom-phone-number" placeholder="例如：0912345678">
+                    </div>
+
+                    <div class="input-group" id="project-price-group">
                         <label style="color: #2b6cb0;">💰 客戶支付的【專案價】</label>
                         <input type="number" id="telecom-project-price" placeholder="請輸入門號專案折扣後的價格" oninput="uiCalculate()">
                     </div>
@@ -142,7 +147,7 @@
 </div>
 
 <script>
-    // ⚠️ 記得把這裡的網址換成您最新的 GAS 網址喔！
+    // ⚠️ 貼上到 GitHub 後請再次確認這裡的網址是否正確
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbz_8f0mMBqkkkwPMhOw_CPIVYUNjuDATofB2gyWik4LawzU4PiK4Po8KoBgkyZjIcXngw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
@@ -153,6 +158,7 @@
     let rawTelecomData = []; 
     let currentCommission = 0; 
     let globalFinalProfit = 0; 
+    let searchActiveId = 0; // 高速防併發鎖
 
     function initSystem() {
         fetchParams();
@@ -162,23 +168,38 @@
     function debounceSearch() {
         clearTimeout(timer);
         document.getElementById('scan-status').innerText = "⏳ 輸入中...";
-        timer = setTimeout(fetchStockData, 400);
+        timer = setTimeout(fetchStockData, 300); // 縮短延遲提高靈敏度
     }
 
+    // ⚡ 核心極速優化：雙管齊下並行查詢法
     function fetchStockData() {
         const sn = document.getElementById('sale-sn').value.trim();
         if (sn.length < 5) return;
-        document.getElementById('scan-status').innerText = "🔍 查詢中...";
+        document.getElementById('scan-status').innerText = "⚡ 正在極速檢索...";
+        
+        searchActiveId++;
+        const thisSearchId = searchActiveId;
+        let hasResolved = false;
 
+        function tryResolve(data) {
+            if (hasResolved || thisSearchId !== searchActiveId) return;
+            hasResolved = true;
+            handleStockResult(data);
+        }
+
+        // 1. 同時往 Firebase 查 (速度極快)
         db.ref('inventory/' + sn).once('value').then(snap => {
             if (snap.exists()) {
                 const fData = snap.val();
-                handleStockResult(fData.soldTo ? {error: "已售給 " + fData.soldTo} : {productName: fData.name, cost: fData.cost, eReminder: fData.eReminder || ""});
-            } else {
-                fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
-                .then(res => res.json()).then(handleStockResult);
+                tryResolve(fData.soldTo ? {error: "已售給 " + fData.soldTo} : {productName: fData.name, cost: fData.cost, eReminder: fData.eReminder || ""});
             }
-        });
+        }).catch(()=>{});
+
+        // 2. 同時往 GAS 查 (當作強力後盾)
+        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
+        .then(res => res.json())
+        .then(data => { tryResolve(data); })
+        .catch(()=>{});
     }
 
     function handleStockResult(data) {
@@ -213,12 +234,12 @@
         const section = document.getElementById('telecom-section');
         const normalPriceGroup = document.getElementById('normal-price-group');
         
+        // 判斷是否為門號相關類別
         if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
             section.style.display = "block";
-            normalPriceGroup.style.display = "none"; // 辦門號時隱藏一般零售價欄位，改用專案價
+            normalPriceGroup.style.display = "none"; // 門號相關時隱藏一般售價，由專案價接管
             buildTelecomCompanies();
         } else {
-            section.style.display = "block";
             section.style.display = "none";
             normalPriceGroup.style.display = "block";
             resetTelecomSelection();
@@ -229,6 +250,7 @@
     function resetTelecomSelection() {
         currentCommission = 0;
         document.getElementById('telecom-project-price').value = "";
+        document.getElementById('telecom-phone-number').value = "";
         document.getElementById('commission-display').innerText = "$0";
         document.getElementById('tel-company').selectedIndex = 0;
         document.getElementById('tel-type').innerHTML = '<option value="">-- 請選擇專案 --</option>';
@@ -284,18 +306,23 @@
         uiCalculate();
     }
 
-    // 💡 運算毛利的核心邏輯優化
+    // 💡 運算毛利的核心邏輯優化（新增門號購機固定毛利 2000 公式）
     function uiCalculate() {
         const type = document.getElementById('income-type').value;
         const method = document.getElementById('pay-method').value;
         
         let price = 0;
-        // 如果是門號專案，價格欄位改成抓取「專案價」
+        
         if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
-            price = parseFloat(document.getElementById('telecom-project-price').value) || 0;
-            const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
-            // 公式：專案價 + 佣金 - 商品成本 - 手續費
-            globalFinalProfit = price + currentCommission - currentCost - fee;
+            // ⭐ 新增邏輯：如果是【門號購機優惠】，毛利固定死 2000 元！
+            if (type.indexOf("購機") !== -1) {
+                globalFinalProfit = 2000;
+            } else {
+                // 原有的門號專案：專案價 + 佣金 - 商品成本 - 手續費
+                price = parseFloat(document.getElementById('telecom-project-price').value) || 0;
+                const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
+                globalFinalProfit = price + currentCommission - currentCost - fee;
+            }
         } else {
             // 一般零售商品公式：售價 - 商品成本 - 手續費
             price = parseFloat(document.getElementById('sale-price').value) || 0;
@@ -313,9 +340,12 @@
         const type = document.getElementById('income-type').value;
         let finalNote = "";
         let finalPrice = parseFloat(document.getElementById('sale-price').value) || 0;
+        let phoneNumber = ""; // 續約號碼預設空
         
         if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1) {
             finalPrice = parseFloat(document.getElementById('telecom-project-price').value) || 0;
+            phoneNumber = document.getElementById('telecom-phone-number').value.trim(); // 抓取號碼
+            
             const com = document.getElementById('tel-company').value;
             const t = document.getElementById('tel-type').value;
             const r = document.getElementById('tel-rate').value;
@@ -330,12 +360,13 @@
             incomeType: document.getElementById('income-type').value,
             payMethod: document.getElementById('pay-method').value,
             consumerName: document.getElementById('cust-name').value + " - " + document.getElementById('res-name').innerText,
-            price: finalPrice, // 自動丟出專案價或零售價
+            price: finalPrice, 
             cost: currentCost,
             sn: document.getElementById('sale-sn').value,
             staff: document.getElementById('staff').value,
             extraNote: finalNote, 
-            calculatedProfit: globalFinalProfit 
+            calculatedProfit: globalFinalProfit,
+            telecomPhone: phoneNumber // 🚀 拋給後端寫入 P 欄
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
