@@ -234,7 +234,6 @@
             section.style.display = "block";
             buildTelecomCompanies();
             
-            // 💡 邏輯修正：只要有「領」字就是二階段（領機），否則如果有「保留」就是第一階段（留機）
             const isStage2 = type.indexOf("領") !== -1;
             const isStage1 = !isStage2 && type.indexOf("保留") !== -1;
             
@@ -261,7 +260,6 @@
 
     function autoQueryProject() {
         const type = document.getElementById('income-type').value;
-        // 💡 修正：只有在二階段（包含「領」字，如：領購機優惠保留）才執行反查
         const isStage2 = type.indexOf("領") !== -1;
         if (!isStage2) return;
 
@@ -282,13 +280,21 @@
                 if (resData && resData.success) {
                     statusSpan.innerText = " ⚡ 方案查獲！正在智能解鎖對齊選單...";
                     
+                    // 🌟 修復核心：強制跳過「請選擇」等空白選項，絕不讓空字串誤判成功！
                     function fuzzySelect(selectElement, targetText) {
                         if (!targetText) return false;
                         let cleanTarget = targetText.replace(/\s+/g, "").toLowerCase();
-                        for (let i = 0; i < selectElement.options.length; i++) {
+                        if (cleanTarget === "") return false; // 防呆：目標字串為空不比對
+
+                        // 從索引 1 開始迴圈，直接避開第 0 項的「-- 請選擇 --」
+                        for (let i = 1; i < selectElement.options.length; i++) {
                             let optionText = selectElement.options[i].text.replace(/\s+/g, "").toLowerCase();
                             let optionVal = selectElement.options[i].value.replace(/\s+/g, "").toLowerCase();
-                            if (optionText.includes(cleanTarget) || cleanTarget.includes(optionText) || optionVal.includes(cleanTarget) || cleanTarget.includes(optionVal)) {
+                            
+                            if (optionVal === "") continue; // 防呆：選項值為空不比對
+
+                            if (optionText.includes(cleanTarget) || cleanTarget.includes(optionText) || 
+                                optionVal.includes(cleanTarget) || cleanTarget.includes(optionVal)) {
                                 selectElement.selectedIndex = i;
                                 return true;
                             }
