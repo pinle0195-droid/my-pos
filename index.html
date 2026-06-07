@@ -146,7 +146,6 @@
 </div>
 
 <script>
-    // ⚠️ 確保這裡是您部署後的最新 GAS API 網址
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycby-wjwyMNXmLxc5wpHFswfPF4OioEjgue8Ynggoa9HF-mYtzNqTHINEz5KT1KTHglHsTg/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
@@ -259,7 +258,6 @@
         uiCalculate();
     }
 
-    // 💡 無敵對齊與除錯引擎：強制修剪、無死角搜尋
     function autoQueryProject() {
         const type = document.getElementById('income-type').value;
         const isStage2 = type.indexOf("領") !== -1;
@@ -282,13 +280,11 @@
                 if (resData && resData.success) {
                     statusSpan.innerText = " ⚡ 方案查獲！正在智能解鎖對齊選單...";
                     
-                    // 升級版模糊選取器：先拼完全相等，再拼部分包含
                     function fuzzySelect(selectElement, targetText) {
                         if (!targetText) return false;
                         let cleanTarget = String(targetText).trim().replace(/\s+/g, "").toLowerCase();
                         if (cleanTarget === "") return false;
 
-                        // 第一輪：完美命中 (排除第一項"請選擇")
                         for (let i = 1; i < selectElement.options.length; i++) {
                             let val = selectElement.options[i].value.replace(/\s+/g, "").toLowerCase();
                             if (val === cleanTarget) {
@@ -296,7 +292,6 @@
                                 return true;
                             }
                         }
-                        // 第二輪：模糊包含
                         for (let i = 1; i < selectElement.options.length; i++) {
                             let optionText = selectElement.options[i].text.replace(/\s+/g, "").toLowerCase();
                             let optionVal = selectElement.options[i].value.replace(/\s+/g, "").toLowerCase();
@@ -326,13 +321,13 @@
                             
                             onRateChange(); 
                             
-                            // 🚀 防雷達偵測：如果資費找不到，直接印在畫面上讓您知道！
                             if (!isRateFound) {
                                 statusSpan.innerHTML = ` ⚠️ 電信與專案已選定，但<span style="color:red">找不到資費[${resData.rate}]</span>，請手動補選`;
                             } else {
                                 statusSpan.innerText = " ✅ 專案方案與佣金已完美帶出！";
                             }
                         }, 250);
+
                     }, 250);
                     
                 } else {
@@ -454,6 +449,9 @@
             }
         }
 
+        // 💡 修正：加上單引號強制轉文字，防止開頭的 0 被試算表吃掉
+        let safePhoneNumber = phoneNumber !== "" ? "'" + phoneNumber : "";
+
         const payload = {
             action: "checkout",
             date: new Date().toLocaleDateString('zh-TW'),
@@ -466,14 +464,13 @@
             staff: document.getElementById('staff').value,
             extraNote: "", 
             calculatedProfit: globalFinalProfit,
-            telecomPhone: phoneNumber, 
+            telecomPhone: safePhoneNumber, 
             telecomProjectInfo: telecomProjectString 
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
     }
 
-    // 💡 終極淨化：載入參數表時，強制剷除所有隱形空格，保證 100% 對齊！
     function fetchParams() {
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
         .then(res => res.json()).then(data => {
