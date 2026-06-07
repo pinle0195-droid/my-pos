@@ -146,6 +146,7 @@
 </div>
 
 <script>
+    // ⚠️ 確保這裡是您部署後的最新 GAS API 網址
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycby-wjwyMNXmLxc5wpHFswfPF4OioEjgue8Ynggoa9HF-mYtzNqTHINEz5KT1KTHglHsTg/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
@@ -258,6 +259,7 @@
         uiCalculate();
     }
 
+    // 💡 無敵對齊與除錯引擎：強制修剪、無死角搜尋
     function autoQueryProject() {
         const type = document.getElementById('income-type').value;
         const isStage2 = type.indexOf("領") !== -1;
@@ -280,18 +282,25 @@
                 if (resData && resData.success) {
                     statusSpan.innerText = " ⚡ 方案查獲！正在智能解鎖對齊選單...";
                     
-                    // 🌟 修復核心：強制跳過「請選擇」等空白選項，絕不讓空字串誤判成功！
+                    // 升級版模糊選取器：先拼完全相等，再拼部分包含
                     function fuzzySelect(selectElement, targetText) {
                         if (!targetText) return false;
-                        let cleanTarget = targetText.replace(/\s+/g, "").toLowerCase();
-                        if (cleanTarget === "") return false; // 防呆：目標字串為空不比對
+                        let cleanTarget = String(targetText).trim().replace(/\s+/g, "").toLowerCase();
+                        if (cleanTarget === "") return false;
 
-                        // 從索引 1 開始迴圈，直接避開第 0 項的「-- 請選擇 --」
+                        // 第一輪：完美命中 (排除第一項"請選擇")
+                        for (let i = 1; i < selectElement.options.length; i++) {
+                            let val = selectElement.options[i].value.replace(/\s+/g, "").toLowerCase();
+                            if (val === cleanTarget) {
+                                selectElement.selectedIndex = i;
+                                return true;
+                            }
+                        }
+                        // 第二輪：模糊包含
                         for (let i = 1; i < selectElement.options.length; i++) {
                             let optionText = selectElement.options[i].text.replace(/\s+/g, "").toLowerCase();
                             let optionVal = selectElement.options[i].value.replace(/\s+/g, "").toLowerCase();
-                            
-                            if (optionVal === "") continue; // 防呆：選項值為空不比對
+                            if (optionVal === "") continue;
 
                             if (optionText.includes(cleanTarget) || cleanTarget.includes(optionText) || 
                                 optionVal.includes(cleanTarget) || cleanTarget.includes(optionVal)) {
@@ -313,12 +322,17 @@
                         
                         setTimeout(() => {
                             const rateSelect = document.getElementById('tel-rate');
-                            fuzzySelect(rateSelect, resData.rate);
+                            const isRateFound = fuzzySelect(rateSelect, resData.rate);
                             
                             onRateChange(); 
-                            statusSpan.innerText = " ✅ 專案方案與佣金已完美帶出！";
+                            
+                            // 🚀 防雷達偵測：如果資費找不到，直接印在畫面上讓您知道！
+                            if (!isRateFound) {
+                                statusSpan.innerHTML = ` ⚠️ 電信與專案已選定，但<span style="color:red">找不到資費[${resData.rate}]</span>，請手動補選`;
+                            } else {
+                                statusSpan.innerText = " ✅ 專案方案與佣金已完美帶出！";
+                            }
                         }, 250);
-
                     }, 250);
                     
                 } else {
@@ -459,47 +473,4 @@
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
     }
 
-    function fetchParams() {
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
-        .then(res => res.json()).then(data => {
-            document.getElementById('income-type').innerHTML = data.incomeList.map(v => `<option value="${v}">${v}</option>`).join('');
-            if (data.telecomData) { rawTelecomData = data.telecomData; }
-            toggleTelecomSection(); 
-        });
-    }
-
-    function checkReminders() {
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getReminders" }) })
-        .then(res => res.json()).then(list => {
-            if (list.length > 0) {
-                document.getElementById('reminder-bar').style.display = 'block';
-                document.getElementById('reminder-text').innerText = list.map(i => i.name).join('、');
-            }
-        });
-    }
-
-    document.addEventListener("keydown", function(e) {
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); }
-    });
-
-    function submitOrder() {
-        const payload = {
-            action: "saveOrder", name: document.getElementById('ord-name').value, product: document.getElementById('ord-product').value,
-            orderTime: new Date().toLocaleDateString('zh-TW'), pickupTime: document.getElementById('ord-pickup').value, note: document.getElementById('ord-note').value
-        };
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
-        .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
-    }
-
-    function queryCustomer() {
-        const name = document.getElementById('query-input').value;
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryCustomer", name: name }) })
-        .then(res => res.json()).then(data => {
-            let html = data.length ? '<table style="width:100%"><tr><th>日期</th><th>品項</th></tr>' : '無紀錄';
-            data.forEach(r => html += `<tr><td>${r.date}</td><td>${r.name}</td></tr>`);
-            document.getElementById('query-results').innerHTML = html + (data.length ? '</table>' : '');
-        });
-    }
-</script>
-</body>
-</html>
+    // 💡 終極淨化：載入參數表時，強制剷除所有隱形空格，保證 100% 對
