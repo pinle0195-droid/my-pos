@@ -146,7 +146,7 @@
 </div>
 
 <script>
-    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzYbX470oGXrbbpHTQFyFvFSPZfnOXPFijf23lLjY1aQNYAadmOceKIuN-DO5C7xjf9Rg/exec"; 
+    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbzrnJ2Lgc0Mnrf7jYSJoZsU9dBWOhY1sM3uJTQ_txLPtBunM5mzoilPFEulH3nV-mAhRw/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -245,7 +245,6 @@
             } else {
                 subNote.style.display = "none";
             }
-            // 💡 修正：只要門號區域是開啟的，直接調用反查判定，不再封鎖特定字眼
             autoQueryProject(); 
         } else {
             section.style.display = "none";
@@ -256,18 +255,16 @@
         uiCalculate();
     }
 
-    // 💡 終極除錯核心：拔除 type 欄位過濾器，點選任何门号相關類別填入門號時，均能自動反查上次專案！
+    // 💡 終極優化：植入強固的「雙向模糊匹配與無感強填引擎」，徹底秒殺文字對齊落差！
     function autoQueryProject() {
         const phone = document.getElementById('telecom-phone-number').value.trim();
         const statusSpan = document.getElementById('phone-search-status');
         
-        // 台灣手機號碼輸入滿 10 碼即自動執行反查調閱
         if (phone.length === 10) {
             statusSpan.innerText = " 🔍 正在極速反查歷史專案...";
             
             fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryProjectByPhone", phone: phone }) })
             .then(res => {
-                // 安全防護網：確保後端丟回的是標準文字而非錯誤的 HTML
                 return res.text().then(text => {
                     try { return JSON.parse(text); } 
                     catch(e) { return { success: false, msg: "解析異常" }; }
@@ -275,43 +272,40 @@
             })
             .then(resData => {
                 if (resData && resData.success) {
-                    statusSpan.innerText = " ⚡ 方案查獲！正在佈署選單...";
+                    statusSpan.innerText = " ⚡ 方案查獲！正在智能解鎖對齊選單...";
                     
-                    // 1. 精準對齊第一級選單：電信公司
-                    const compSelect = document.getElementById('tel-company');
-                    let targetTelecom = resData.telecom || "";
-                    for (let i = 0; i < compSelect.options.length; i++) {
-                        if (compSelect.options[i].value.includes(targetTelecom) || targetTelecom.includes(compSelect.options[i].value)) {
-                            compSelect.selectedIndex = i;
-                            break;
+                    // 🌟 輔助函數：幫助選單進行無死角的模糊搜尋匹配
+                    function fuzzySelect(selectElement, targetText) {
+                        if (!targetText) return false;
+                        let cleanTarget = targetText.replace(/\s+/g, "").toLowerCase();
+                        for (let i = 0; i < selectElement.options.length; i++) {
+                            let optionText = selectElement.options[i].text.replace(/\s+/g, "").toLowerCase();
+                            let optionVal = selectElement.options[i].value.replace(/\s+/g, "").toLowerCase();
+                            if (optionText.includes(cleanTarget) || cleanTarget.includes(optionText) || optionVal.includes(cleanTarget) || cleanTarget.includes(optionVal)) {
+                                selectElement.selectedIndex = i;
+                                return true;
+                            }
                         }
+                        return false;
                     }
-                    onTelecomChange(); // 手動驅動生出第二級選項
+
+                    // 1. 勾選第一級：電信公司
+                    const compSelect = document.getElementById('tel-company');
+                    fuzzySelect(compSelect, resData.telecom);
+                    onTelecomChange(); 
                     
-                    // 2. ⚡ 安全緩衝延遲 250ms，給瀏覽器充足時間將 Option 標籤渲染完畢，再勾選第二級
+                    // 2. ⚡ 安全緩衝 250ms，勾選第二級：專案類別
                     setTimeout(() => {
                         const typeSelect = document.getElementById('tel-type');
-                        let targetType = resData.type || "";
-                        for (let j = 0; j < typeSelect.options.length; j++) {
-                            if (typeSelect.options[j].value.includes(targetType) || targetType.includes(typeSelect.options[j].value)) {
-                                typeSelect.selectedIndex = j;
-                                break;
-                            }
-                        }
-                        onTypeChange(); // 手動驅動生出第三級選項
+                        fuzzySelect(typeSelect, resData.type);
+                        onTypeChange(); 
                         
-                        // 3. ⚡ 再安全緩衝延遲 250ms，完全就位後勾選第三級並結算佣金
+                        // 3. ⚡ 再安全緩衝 250ms，勾選第三級：資費方案
                         setTimeout(() => {
                             const rateSelect = document.getElementById('tel-rate');
-                            let targetRate = resData.rate || "";
-                            for (let k = 0; k < rateSelect.options.length; k++) {
-                                if (rateSelect.options[k].value.includes(targetRate) || targetRate.includes(rateSelect.options[k].value)) {
-                                    rateSelect.selectedIndex = k;
-                                    break;
-                                }
-                            }
+                            fuzzySelect(rateSelect, resData.rate);
                             
-                            // 🚀 核心收尾：主動發射費率更新，自動帶出當時的佣金
+                            // 🚀 核心收尾：選單完全歸位，強制重算退佣金額與即時預估毛利
                             onRateChange(); 
                             statusSpan.innerText = " ✅ 專案方案與佣金已完美帶出！";
                         }, 250);
