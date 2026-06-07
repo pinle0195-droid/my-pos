@@ -230,17 +230,21 @@
         const priceLabel = document.getElementById('price-label');
         const subNote = document.getElementById('sub-comm-note');
         
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("合約") !== -1) {
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("合約") !== -1 || type.indexOf("領") !== -1) {
             section.style.display = "block";
             buildTelecomCompanies();
             
-            if (type.indexOf("保留") !== -1 || type.indexOf("領購") !== -1 || type.indexOf("領取") !== -1) {
+            // 💡 邏輯修正：只要有「領」字就是二階段（領機），否則如果有「保留」就是第一階段（留機）
+            const isStage2 = type.indexOf("領") !== -1;
+            const isStage1 = !isStage2 && type.indexOf("保留") !== -1;
+            
+            if (isStage1 || isStage2) {
                 priceLabel.innerText = "💰 商品專案價";
             } else {
                 priceLabel.innerText = "售價 / 專案金額";
             }
 
-            if (type.indexOf("保留") === -1 && (type.indexOf("領") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("購機") !== -1)) {
+            if (isStage2) {
                 subNote.style.display = "inline";
             } else {
                 subNote.style.display = "none";
@@ -255,8 +259,12 @@
         uiCalculate();
     }
 
-    // 💡 終極優化：植入強固的「雙向模糊匹配與無感強填引擎」，徹底秒殺文字對齊落差！
     function autoQueryProject() {
+        const type = document.getElementById('income-type').value;
+        // 💡 修正：只有在二階段（包含「領」字，如：領購機優惠保留）才執行反查
+        const isStage2 = type.indexOf("領") !== -1;
+        if (!isStage2) return;
+
         const phone = document.getElementById('telecom-phone-number').value.trim();
         const statusSpan = document.getElementById('phone-search-status');
         
@@ -274,7 +282,6 @@
                 if (resData && resData.success) {
                     statusSpan.innerText = " ⚡ 方案查獲！正在智能解鎖對齊選單...";
                     
-                    // 🌟 輔助函數：幫助選單進行無死角的模糊搜尋匹配
                     function fuzzySelect(selectElement, targetText) {
                         if (!targetText) return false;
                         let cleanTarget = targetText.replace(/\s+/g, "").toLowerCase();
@@ -289,23 +296,19 @@
                         return false;
                     }
 
-                    // 1. 勾選第一級：電信公司
                     const compSelect = document.getElementById('tel-company');
                     fuzzySelect(compSelect, resData.telecom);
                     onTelecomChange(); 
                     
-                    // 2. ⚡ 安全緩衝 250ms，勾選第二級：專案類別
                     setTimeout(() => {
                         const typeSelect = document.getElementById('tel-type');
                         fuzzySelect(typeSelect, resData.type);
                         onTypeChange(); 
                         
-                        // 3. ⚡ 再安全緩衝 250ms，勾選第三級：資費方案
                         setTimeout(() => {
                             const rateSelect = document.getElementById('tel-rate');
                             fuzzySelect(rateSelect, resData.rate);
                             
-                            // 🚀 核心收尾：選單完全歸位，強制重算退佣金額與即時預估毛利
                             onRateChange(); 
                             statusSpan.innerText = " ✅ 專案方案與佣金已完美帶出！";
                         }, 250);
@@ -386,10 +389,13 @@
         const price = parseFloat(document.getElementById('sale-price').value) || 0;
         const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
         
-        if (type.indexOf("保留") !== -1) {
+        const isStage2 = type.indexOf("領") !== -1;
+        const isStage1 = !isStage2 && type.indexOf("保留") !== -1;
+
+        if (isStage1) {
             globalFinalProfit = 2000;
         } 
-        else if (type.indexOf("保留") === -1 && (type.indexOf("領") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("購機") !== -1)) {
+        else if (isStage2) {
             if (currentCommission === 0) {
                 globalFinalProfit = price - currentCost - fee;
                 if (globalFinalProfit < 0) globalFinalProfit = 0; 
@@ -417,7 +423,7 @@
         let phoneNumber = ""; 
         let telecomProjectString = ""; 
         
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("合約") !== -1) {
+        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("合約") !== -1 || type.indexOf("領") !== -1) {
             phoneNumber = document.getElementById('telecom-phone-number').value.trim(); 
             const com = document.getElementById('tel-company').value;
             const t = document.getElementById('tel-type').value;
