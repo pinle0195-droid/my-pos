@@ -473,4 +473,55 @@
         .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
     }
 
-    // 💡 終極淨化：載入參數表時，強制剷除所有隱形空格，保證 100% 對
+    // 💡 終極淨化：載入參數表時，強制剷除所有隱形空格，保證 100% 對齊！
+    function fetchParams() {
+        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
+        .then(res => res.json()).then(data => {
+            document.getElementById('income-type').innerHTML = data.incomeList.map(v => `<option value="${v}">${v}</option>`).join('');
+            if (data.telecomData) { 
+                rawTelecomData = data.telecomData.map(item => ({
+                    telecom: String(item.telecom).trim(),
+                    type: String(item.type).trim(),
+                    rate: String(item.rate).trim(),
+                    commission: Number(item.commission) || 0
+                }));
+            }
+            toggleTelecomSection(); 
+        });
+    }
+
+    function checkReminders() {
+        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getReminders" }) })
+        .then(res => res.json()).then(list => {
+            if (list.length > 0) {
+                document.getElementById('reminder-bar').style.display = 'block';
+                document.getElementById('reminder-text').innerText = list.map(i => i.name).join('、');
+            }
+        });
+    }
+
+    document.addEventListener("keydown", function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); }
+    });
+
+    function submitOrder() {
+        const payload = {
+            action: "saveOrder", name: document.getElementById('ord-name').value, product: document.getElementById('ord-product').value,
+            orderTime: new Date().toLocaleDateString('zh-TW'), pickupTime: document.getElementById('ord-pickup').value, note: document.getElementById('ord-note').value
+        };
+        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
+        .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
+    }
+
+    function queryCustomer() {
+        const name = document.getElementById('query-input').value;
+        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryCustomer", name: name }) })
+        .then(res => res.json()).then(data => {
+            let html = data.length ? '<table style="width:100%"><tr><th>日期</th><th>品項</th></tr>' : '無紀錄';
+            data.forEach(r => html += `<tr><td>${r.date}</td><td>${r.name}</td></tr>`);
+            document.getElementById('query-results').innerHTML = html + (data.length ? '</table>' : '');
+        });
+    }
+</script>
+</body>
+</html>
