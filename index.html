@@ -38,6 +38,25 @@
             display: none; 
             line-height: 1.4;
         }
+        
+        /* 新增：盤價連動快捷區塊樣式 */
+        .lianhe-btn-box {
+            background: #e1f0fa;
+            border: 1px solid #b8daff;
+            color: #0056b3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: center;
+            display: none;
+            transition: 0.2s;
+        }
+        .lianhe-btn-box:hover {
+            background: #cce5ff;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body onload="initSystem()">
@@ -59,6 +78,10 @@
                     <div style="display:flex; justify-content:space-between; margin-top:5px; color:var(--pinle-orange); font-weight:bold;">
                         <span>預估毛利:</span><span id="res-profit">$0</span>
                     </div>
+                </div>
+
+                <div id="lianhe-shortcut" class="lianhe-btn-box" onclick="window.open('https://sites.google.com/view/lianhe16888', '_blank')">
+                    🔍 <b>查閱出貨行情：</b>點擊前往【聯合16888】查看今日最新盤價
                 </div>
 
                 <div id="excel-e-reminder" class="extra-reminder-box">
@@ -146,7 +169,6 @@
 </div>
 
 <script>
-    // ⚠️ 確保這裡是您部署後的最新 GAS API 網址
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycby-wjwyMNXmLxc5wpHFswfPF4OioEjgue8Ynggoa9HF-mYtzNqTHINEz5KT1KTHglHsTg/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
@@ -202,6 +224,7 @@
         const btn = document.getElementById('btn-checkout');
         const reminderBox = document.getElementById('excel-e-reminder');
         const reminderText = document.getElementById('e-reminder-text');
+        const lianheShortcut = document.getElementById('lianhe-shortcut');
         
         document.getElementById('scan-status').innerText = "";
         
@@ -210,6 +233,9 @@
             document.getElementById('res-cost').innerText = "$" + data.cost;
             currentCost = parseFloat(data.cost);
             btn.disabled = false;
+            
+            // 💡 只要成功掃出商品，就顯示聯合盤商捷徑
+            lianheShortcut.style.display = "block";
             
             if (data.eReminder && data.eReminder.trim() !== "") {
                 reminderText.innerText = data.eReminder;
@@ -221,6 +247,7 @@
             document.getElementById('res-name').innerHTML = `<span style="color:red">${data.error || "查無序號"}</span>`;
             btn.disabled = true;
             reminderBox.style.display = "none";
+            lianheShortcut.style.display = "none";
         }
         uiCalculate();
     }
@@ -450,7 +477,6 @@
             }
         }
 
-        // 💡 確保 Excel/Google Sheets 不會吃掉電話號碼開頭的 0
         let safePhoneNumber = phoneNumber !== "" ? "'" + phoneNumber : "";
 
         const payload = {
@@ -465,7 +491,7 @@
             staff: document.getElementById('staff').value,
             extraNote: "", 
             calculatedProfit: globalFinalProfit,
-            telecomPhone: safePhoneNumber, // 🚀 帶入處理過防吞 0 的變數
+            telecomPhone: safePhoneNumber, 
             telecomProjectInfo: telecomProjectString 
         };
         fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
