@@ -38,25 +38,6 @@
             display: none; 
             line-height: 1.4;
         }
-        
-        /* 新增：盤價連動快捷區塊樣式 */
-        .lianhe-btn-box {
-            background: #e1f0fa;
-            border: 1px solid #b8daff;
-            color: #0056b3;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            text-align: center;
-            display: none;
-            transition: 0.2s;
-        }
-        .lianhe-btn-box:hover {
-            background: #cce5ff;
-            transform: translateY(-2px);
-        }
     </style>
 </head>
 <body onload="initSystem()">
@@ -68,26 +49,7 @@
         <div class="flex-left">
             <div class="card">
                 <div class="card-title">💰 快速結帳</div>
-                <div class="input-group">
-                    <label>掃描序號 / SN <span id="scan-status" class="loading-text"></span></label>
-                    <input type="text" id="sale-sn" placeholder="輸入序號後自動查詢..." oninput="debounceSearch()">
-                </div>
-                <div class="result-box">
-                    <div style="display:flex; justify-content:space-between"><span>品名:</span><b id="res-name">等待輸入...</b></div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;"><span>成本:</span><span id="res-cost">$0</span></div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px; color:var(--pinle-orange); font-weight:bold;">
-                        <span>預估毛利:</span><span id="res-profit">$0</span>
-                    </div>
-                </div>
-
-                <div id="lianhe-shortcut" class="lianhe-btn-box" onclick="window.open('https://sites.google.com/view/lianhe16888', '_blank')">
-                    🔍 <b>查閱出貨行情：</b>點擊前往【聯合16888】查看今日最新盤價
-                </div>
-
-                <div id="excel-e-reminder" class="extra-reminder-box">
-                    📌 <b>重要提醒：</b><span id="e-reminder-text"></span>
-                </div>
-
+                
                 <div class="input-group"><label>客戶姓名</label><input type="text" id="cust-name"></div>
                 
                 <div class="input-group" id="normal-price-group">
@@ -142,6 +104,24 @@
                     </div>
                 </div>
 
+                <div style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px;"></div>
+                
+                <div class="input-group">
+                    <label>掃描序號 / SN <span id="scan-status" class="loading-text"></span></label>
+                    <input type="text" id="sale-sn" placeholder="輸入序號後自動查詢..." oninput="debounceSearch()">
+                </div>
+                <div class="result-box">
+                    <div style="display:flex; justify-content:space-between"><span>品名:</span><b id="res-name">等待輸入...</b></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;"><span>成本:</span><span id="res-cost">$0</span></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; color:var(--pinle-orange); font-weight:bold;">
+                        <span>預估毛利:</span><span id="res-profit">$0</span>
+                    </div>
+                </div>
+
+                <div id="excel-e-reminder" class="extra-reminder-box">
+                    📌 <b>重要提醒：</b><span id="e-reminder-text"></span>
+                </div>
+
                 <div class="input-group"><label>經手人</label><select id="staff"><option>坤霖</option><option>思璇</option><option>嘉尹</option></select></div>
                 <button id="btn-checkout" class="btn btn-pay" onclick="submitCheckout()">確認結帳</button>
             </div>
@@ -169,6 +149,7 @@
 </div>
 
 <script>
+    // ⚠️ 確保這裡是您部署後的最新 GAS API 網址
     const GOOGLE_URL = "https://script.google.com/macros/s/AKfycby-wjwyMNXmLxc5wpHFswfPF4OioEjgue8Ynggoa9HF-mYtzNqTHINEz5KT1KTHglHsTg/exec"; 
     const firebaseConfig = { databaseURL: "https://mypos2026-2625d-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
@@ -207,345 +188,4 @@
             handleStockResult(data);
         }
 
-        db.ref('inventory/' + sn).once('value').then(snap => {
-            if (snap.exists()) {
-                const fData = snap.val();
-                tryResolve(fData.soldTo ? {error: "已售給 " + fData.soldTo} : {productName: fData.name, cost: fData.cost, eReminder: fData.eReminder || ""});
-            }
-        }).catch(()=>{});
-
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "checkStock", sn: sn }) })
-        .then(res => res.json())
-        .then(data => { tryResolve(data); })
-        .catch(()=>{});
-    }
-
-    function handleStockResult(data) {
-        const btn = document.getElementById('btn-checkout');
-        const reminderBox = document.getElementById('excel-e-reminder');
-        const reminderText = document.getElementById('e-reminder-text');
-        const lianheShortcut = document.getElementById('lianhe-shortcut');
-        
-        document.getElementById('scan-status').innerText = "";
-        
-        if (data && !data.error) {
-            document.getElementById('res-name').innerText = data.productName;
-            document.getElementById('res-cost').innerText = "$" + data.cost;
-            currentCost = parseFloat(data.cost);
-            btn.disabled = false;
-            
-            // 💡 只要成功掃出商品，就顯示聯合盤商捷徑
-            lianheShortcut.style.display = "block";
-            
-            if (data.eReminder && data.eReminder.trim() !== "") {
-                reminderText.innerText = data.eReminder;
-                reminderBox.style.display = "block";
-            } else {
-                reminderBox.style.display = "none";
-            }
-        } else {
-            document.getElementById('res-name').innerHTML = `<span style="color:red">${data.error || "查無序號"}</span>`;
-            btn.disabled = true;
-            reminderBox.style.display = "none";
-            lianheShortcut.style.display = "none";
-        }
-        uiCalculate();
-    }
-
-    function toggleTelecomSection() {
-        const type = document.getElementById('income-type').value;
-        const section = document.getElementById('telecom-section');
-        const priceLabel = document.getElementById('price-label');
-        const subNote = document.getElementById('sub-comm-note');
-        
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("合約") !== -1 || type.indexOf("領") !== -1) {
-            section.style.display = "block";
-            buildTelecomCompanies();
-            
-            const isStage2 = type.indexOf("領") !== -1;
-            const isStage1 = !isStage2 && type.indexOf("保留") !== -1;
-            
-            if (isStage1 || isStage2) {
-                priceLabel.innerText = "💰 商品專案價";
-            } else {
-                priceLabel.innerText = "售價 / 專案金額";
-            }
-
-            if (isStage2) {
-                subNote.style.display = "inline";
-            } else {
-                subNote.style.display = "none";
-            }
-            autoQueryProject(); 
-        } else {
-            section.style.display = "none";
-            priceLabel.innerText = "售價 (零售價)";
-            subNote.style.display = "none";
-            resetTelecomSelection();
-        }
-        uiCalculate();
-    }
-
-    function autoQueryProject() {
-        const type = document.getElementById('income-type').value;
-        const isStage2 = type.indexOf("領") !== -1;
-        if (!isStage2) return;
-
-        const phone = document.getElementById('telecom-phone-number').value.trim();
-        const statusSpan = document.getElementById('phone-search-status');
-        
-        if (phone.length === 10) {
-            statusSpan.innerText = " 🔍 正在極速反查歷史專案...";
-            
-            fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryProjectByPhone", phone: phone }) })
-            .then(res => {
-                return res.text().then(text => {
-                    try { return JSON.parse(text); } 
-                    catch(e) { return { success: false, msg: "解析異常" }; }
-                });
-            })
-            .then(resData => {
-                if (resData && resData.success) {
-                    statusSpan.innerText = " ⚡ 方案查獲！正在智能解鎖對齊選單...";
-                    
-                    function fuzzySelect(selectElement, targetText) {
-                        if (!targetText) return false;
-                        let cleanTarget = String(targetText).trim().replace(/\s+/g, "").toLowerCase();
-                        if (cleanTarget === "") return false;
-
-                        for (let i = 1; i < selectElement.options.length; i++) {
-                            let val = selectElement.options[i].value.replace(/\s+/g, "").toLowerCase();
-                            if (val === cleanTarget) {
-                                selectElement.selectedIndex = i;
-                                return true;
-                            }
-                        }
-                        for (let i = 1; i < selectElement.options.length; i++) {
-                            let optionText = selectElement.options[i].text.replace(/\s+/g, "").toLowerCase();
-                            let optionVal = selectElement.options[i].value.replace(/\s+/g, "").toLowerCase();
-                            if (optionVal === "") continue;
-
-                            if (optionText.includes(cleanTarget) || cleanTarget.includes(optionText) || 
-                                optionVal.includes(cleanTarget) || cleanTarget.includes(optionVal)) {
-                                selectElement.selectedIndex = i;
-                                return true;
-                            }
-                        }
-                        return false;
-                    }
-
-                    const compSelect = document.getElementById('tel-company');
-                    fuzzySelect(compSelect, resData.telecom);
-                    onTelecomChange(); 
-                    
-                    setTimeout(() => {
-                        const typeSelect = document.getElementById('tel-type');
-                        fuzzySelect(typeSelect, resData.type);
-                        onTypeChange(); 
-                        
-                        setTimeout(() => {
-                            const rateSelect = document.getElementById('tel-rate');
-                            const isRateFound = fuzzySelect(rateSelect, resData.rate);
-                            
-                            onRateChange(); 
-                            
-                            if (!isRateFound) {
-                                statusSpan.innerHTML = ` ⚠️ 電信與專案已選定，但<span style="color:red">找不到資費[${resData.rate}]</span>，請手動補選`;
-                            } else {
-                                statusSpan.innerText = " ✅ 專案方案與佣金已完美帶出！";
-                            }
-                        }, 250);
-
-                    }, 250);
-                    
-                } else {
-                    statusSpan.innerText = " ❌ 查無此號碼的歷史保留合約明細";
-                }
-            }).catch(() => { statusSpan.innerText = " ❌ 連線異常，請手動下拉勾選專案"; });
-        } else {
-            statusSpan.innerText = "";
-        }
-    }
-
-    function resetTelecomSelection() {
-        currentCommission = 0;
-        document.getElementById('telecom-phone-number').value = "";
-        document.getElementById('commission-display').innerText = "$0";
-        document.getElementById('tel-company').selectedIndex = 0;
-        document.getElementById('tel-type').innerHTML = '<option value="">-- 請選擇專案 --</option>';
-        document.getElementById('tel-rate').innerHTML = '<option value="">-- 請選擇資費 --</option>';
-        document.getElementById('phone-search-status').innerText = "";
-        uiCalculate();
-    }
-
-    function buildTelecomCompanies() {
-        const companySelect = document.getElementById('tel-company');
-        const companies = [...new Set(rawTelecomData.map(item => item.telecom))];
-        companySelect.innerHTML = '<option value="">-- 請選擇電信 --</option>' + 
-            companies.map(c => `<option value="${c}">${c}</option>`).join('');
-    }
-
-    function onTelecomChange() {
-        const com = document.getElementById('tel-company').value;
-        const typeSelect = document.getElementById('tel-type');
-        typeSelect.innerHTML = '<option value="">-- 請選擇專案 --</option>';
-        document.getElementById('tel-rate').innerHTML = '<option value="">-- 請選擇資費 --</option>';
-        currentCommission = 0;
-        document.getElementById('commission-display').innerText = "$0";
-        
-        if (!com) { uiCalculate(); return; }
-        const filteredTypes = [...new Set(rawTelecomData.filter(item => item.telecom === com).map(item => item.type))];
-        typeSelect.innerHTML += filteredTypes.map(t => `<option value="${t}">${t}</option>`).join('');
-        uiCalculate();
-    }
-
-    function onTypeChange() {
-        const com = document.getElementById('tel-company').value;
-        const type = document.getElementById('tel-type').value;
-        const rateSelect = document.getElementById('tel-rate');
-        rateSelect.innerHTML = '<option value="">-- 請選擇資費 --</option>';
-        currentCommission = 0;
-        document.getElementById('commission-display').innerText = "$0";
-        
-        if (!com || !type) { uiCalculate(); return; }
-        const filteredRates = rawTelecomData.filter(item => item.telecom === com && item.type === type);
-        rateSelect.innerHTML += filteredRates.map(r => `<option value="${r.rate}">${r.rate}</option>`).join('');
-        uiCalculate();
-    }
-
-    function onRateChange() {
-        const com = document.getElementById('tel-company').value;
-        const type = document.getElementById('tel-type').value;
-        const rate = document.getElementById('tel-rate').value;
-        
-        if (!com || !type || !rate) { currentCommission = 0; document.getElementById('commission-display').innerText = "$0"; uiCalculate(); return; }
-        
-        const target = rawTelecomData.find(item => item.telecom === com && item.type === type && item.rate === rate);
-        currentCommission = target ? target.commission : 0;
-        document.getElementById('commission-display').innerText = "$" + currentCommission.toLocaleString();
-        uiCalculate();
-    }
-
-    function uiCalculate() {
-        const type = document.getElementById('income-type').value;
-        const method = document.getElementById('pay-method').value;
-        const price = parseFloat(document.getElementById('sale-price').value) || 0;
-        const fee = !(["現金", "匯款", "iPass Money"].includes(method)) ? Math.round(price * 0.02) : 0;
-        
-        const isStage2 = type.indexOf("領") !== -1;
-        const isStage1 = !isStage2 && type.indexOf("保留") !== -1;
-
-        if (isStage1) {
-            globalFinalProfit = 2000;
-        } 
-        else if (isStage2) {
-            if (currentCommission === 0) {
-                globalFinalProfit = price - currentCost - fee;
-                if (globalFinalProfit < 0) globalFinalProfit = 0; 
-            } else {
-                const adjustedCommission = currentCommission - 2000;
-                globalFinalProfit = price + adjustedCommission - currentCost - fee;
-            }
-        }
-        else if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("合約") !== -1) {
-            globalFinalProfit = price + currentCommission - currentCost - fee;
-        } 
-        else {
-            globalFinalProfit = price - currentCost - fee;
-        }
-        
-        document.getElementById('res-profit').innerText = "$" + Math.round(globalFinalProfit).toLocaleString();
-    }
-
-    function submitCheckout() {
-        const btn = document.getElementById('btn-checkout');
-        btn.disabled = true; btn.innerText = "寫入中...";
-        
-        const type = document.getElementById('income-type').value;
-        const price = parseFloat(document.getElementById('sale-price').value) || 0;
-        let phoneNumber = ""; 
-        let telecomProjectString = ""; 
-        
-        if (type.indexOf("門號") !== -1 || type.indexOf("申辦") !== -1 || type.indexOf("購機") !== -1 || type.indexOf("續約") !== -1 || type.indexOf("保留") !== -1 || type.indexOf("優惠") !== -1 || type.indexOf("合約") !== -1 || type.indexOf("領") !== -1) {
-            phoneNumber = document.getElementById('telecom-phone-number').value.trim(); 
-            const com = document.getElementById('tel-company').value;
-            const t = document.getElementById('tel-type').value;
-            const r = document.getElementById('tel-rate').value;
-            
-            if(com && t && r) {
-                telecomProjectString = `${com}/${t}/${r}`;
-            }
-        }
-
-        let safePhoneNumber = phoneNumber !== "" ? "'" + phoneNumber : "";
-
-        const payload = {
-            action: "checkout",
-            date: new Date().toLocaleDateString('zh-TW'),
-            incomeType: document.getElementById('income-type').value,
-            payMethod: document.getElementById('pay-method').value,
-            consumerName: document.getElementById('cust-name').value + " - " + document.getElementById('res-name').innerText,
-            price: price, 
-            cost: currentCost,
-            sn: document.getElementById('sale-sn').value,
-            staff: document.getElementById('staff').value,
-            extraNote: "", 
-            calculatedProfit: globalFinalProfit,
-            telecomPhone: safePhoneNumber, 
-            telecomProjectInfo: telecomProjectString 
-        };
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
-        .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
-    }
-
-    function fetchParams() {
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getParameters" }) })
-        .then(res => res.json()).then(data => {
-            document.getElementById('income-type').innerHTML = data.incomeList.map(v => `<option value="${v}">${v}</option>`).join('');
-            if (data.telecomData) { 
-                rawTelecomData = data.telecomData.map(item => ({
-                    telecom: String(item.telecom).trim(),
-                    type: String(item.type).trim(),
-                    rate: String(item.rate).trim(),
-                    commission: Number(item.commission) || 0
-                }));
-            }
-            toggleTelecomSection(); 
-        });
-    }
-
-    function checkReminders() {
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "getReminders" }) })
-        .then(res => res.json()).then(list => {
-            if (list.length > 0) {
-                document.getElementById('reminder-bar').style.display = 'block';
-                document.getElementById('reminder-text').innerText = list.map(i => i.name).join('、');
-            }
-        });
-    }
-
-    document.addEventListener("keydown", function(e) {
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); }
-    });
-
-    function submitOrder() {
-        const payload = {
-            action: "saveOrder", name: document.getElementById('ord-name').value, product: document.getElementById('ord-product').value,
-            orderTime: new Date().toLocaleDateString('zh-TW'), pickupTime: document.getElementById('ord-pickup').value, note: document.getElementById('ord-note').value
-        };
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify(payload) })
-        .then(res => res.text()).then(msg => { alert(msg); location.reload(); });
-    }
-
-    function queryCustomer() {
-        const name = document.getElementById('query-input').value;
-        fetch(GOOGLE_URL, { method: "POST", body: JSON.stringify({ action: "queryCustomer", name: name }) })
-        .then(res => res.json()).then(data => {
-            let html = data.length ? '<table style="width:100%"><tr><th>日期</th><th>品項</th></tr>' : '無紀錄';
-            data.forEach(r => html += `<tr><td>${r.date}</td><td>${r.name}</td></tr>`);
-            document.getElementById('query-results').innerHTML = html + (data.length ? '</table>' : '');
-        });
-    }
-</script>
-</body>
-</html>
+        db.ref('inventory/' + sn).once('value').then(
